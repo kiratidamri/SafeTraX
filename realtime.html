@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTraX – Real-time</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTraX</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Real-time travel status</p>
+  </header>
+
+  <main class="container">
+    <!-- Current location (city) -->
+    <div class="card card-location">
+      <h3 class="card-title">Current location</h3>
+      <p class="location-display" id="location-display">San Francisco, CA, United States</p>
+      <div class="location-actions">
+        <button type="button" class="btn btn-outline btn-sm" id="btn-use-location">Use my location</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btn-change-location">Enter city</button>
+      </div>
+      <div class="location-edit hidden" id="location-edit">
+        <input type="text" id="location-input" placeholder="e.g. Los Angeles, CA or London, UK" aria-label="Enter location">
+        <button type="button" class="btn btn-primary btn-sm mt-1" id="btn-set-location">Set location</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Risk, weather and concerns are for this location.</p>
+    </div>
+
+    <!-- Live risk score -->
+    <div class="card">
+      <h2>Current risk score</h2>
+      <p style="font-size: 2rem; font-weight: 700; color: var(--primary);" id="realtime-risk">6</p>
+      <p style="font-size: 0.9rem; color: var(--text-muted);">Updated in real time for <span id="location-label">San Francisco, CA</span></p>
+    </div>
+
+    <!-- Real-time weather -->
+    <div class="card">
+      <h3 class="card-title">Real-time weather</h3>
+      <div class="widget-row">
+        <div class="widget">
+          <span class="value" id="weather-temp">74°F</span>
+          <span class="label">Temperature</span>
+        </div>
+        <div class="widget">
+          <span class="value" id="weather-condition">Clear</span>
+          <span class="label">Conditions</span>
+        </div>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Location-based; refresh for latest.</p>
+    </div>
+
+    <!-- Concerns -->
+    <div class="card">
+      <h3 class="card-title">Current concerns</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Food, water, air, noise, unrest, disasters</p>
+      <ul style="list-style: none;">
+        <li class="check-item"><span class="risk-badge risk-0-3">Low</span> Food safety</li>
+        <li class="check-item"><span class="risk-badge risk-0-3">Low</span> Water quality</li>
+        <li class="check-item"><span class="risk-badge risk-4-6">Moderate</span> Air pollution</li>
+        <li class="check-item"><span class="risk-badge risk-0-3">Low</span> Noise pollution</li>
+        <li class="check-item"><span class="risk-badge risk-0-3">Low</span> Unrest / security</li>
+        <li class="check-item"><span class="risk-badge risk-0-3">Low</span> Disasters / natural hazards</li>
+      </ul>
+    </div>
+
+    <!-- Edit info (additional for real-time situations) -->
+    <div class="card">
+      <h3 class="card-title">Edit info (real-time situations)</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Update your status or add notes for this trip.</p>
+      <label for="realtime-note">Additional note or change</label>
+      <textarea id="realtime-note" rows="2" placeholder="e.g. Changed hotel, new contact, health update"></textarea>
+      <button type="button" class="btn btn-outline btn-block mt-1">Save update</button>
+    </div>
+
+    <!-- Share -->
+    <div class="card">
+      <h3 class="card-title">Share with others</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Share your real-time risk, weather & concerns on social or send a link via iMessage.</p>
+      <div class="share-social">
+        <a href="#" id="share-facebook" class="share-btn share-facebook" target="_blank" rel="noopener" title="Share on Facebook">Facebook</a>
+        <a href="#" id="share-twitter" class="share-btn share-twitter" target="_blank" rel="noopener" title="Share on Twitter">Twitter</a>
+        <a href="#" id="share-instagram" class="share-btn share-instagram" target="_blank" rel="noopener" title="Share on Instagram">Instagram</a>
+        <a href="#" id="share-imessage" class="share-btn share-imessage" title="Share via iMessage">iMessage</a>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.75rem;">Recipients can see your current risk score, weather, and concern levels.</p>
+    </div>
+
+    <!-- Ads (few) -->
+    <div class="card card-ads">
+      <span class="ad-badge">Ad</span>
+      <h3 class="card-title">Sponsored</h3>
+      <div class="ads-list">
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Nearest urgent care</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Travel insurance</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <nav class="nav-bottom">
+    <a href="index.html"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Travel plan</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="profile.html"><span class="icon-label">Profile</span></a>
+    <a href="realtime.html" class="active"><span class="icon-label">Real-time</span></a>
+  </nav>
+
+  <script>
+    (function() {
+      var risk = document.getElementById('realtime-risk').textContent;
+      var temp = document.getElementById('weather-temp').textContent;
+      var shareUrl = encodeURIComponent(window.location.href);
+      var shareText = 'SafeTraX – My travel status: Risk ' + risk + '/10, ' + temp + '. View live: ';
+
+      document.getElementById('share-facebook').href = 'https://www.facebook.com/sharer/sharer.php?u=' + shareUrl;
+      document.getElementById('share-twitter').href = 'https://twitter.com/intent/tweet?url=' + shareUrl + '&text=' + encodeURIComponent('SafeTraX – My travel status: Risk ' + risk + '/10, ' + temp);
+      document.getElementById('share-instagram').href = 'https://www.instagram.com/';
+      document.getElementById('share-imessage').href = 'sms:?body=' + encodeURIComponent(shareText + window.location.href);
+
+      if (navigator.share) {
+        document.getElementById('share-imessage').addEventListener('click', function(e) {
+          e.preventDefault();
+          navigator.share({
+            title: 'SafeTraX – My travel status',
+            text: shareText,
+            url: window.location.href
+          }).catch(function() {
+            window.location.href = 'sms:?body=' + encodeURIComponent(shareText + window.location.href);
+          });
+        });
+      }
+    })();
+
+    (function locationSection() {
+      var display = document.getElementById('location-display');
+      var label = document.getElementById('location-label');
+      var input = document.getElementById('location-input');
+      var editRow = document.getElementById('location-edit');
+      var btnUse = document.getElementById('btn-use-location');
+      var btnChange = document.getElementById('btn-change-location');
+      var btnSet = document.getElementById('btn-set-location');
+
+      function setLocationText(text) {
+        display.textContent = text;
+        var parts = text.split(',').map(function(p) { return p.trim(); }).filter(Boolean);
+        if (label) label.textContent = parts.length >= 2 ? parts[0] + ', ' + parts[1] : text;
+      }
+
+      btnUse.addEventListener('click', function() {
+        if (!navigator.geolocation) { setLocationText('Location not supported'); return; }
+        btnUse.textContent = 'Getting location…';
+        navigator.geolocation.getCurrentPosition(
+          function(pos) {
+            var lat = pos.coords.latitude, lon = pos.coords.longitude;
+            fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lon + '&format=json', { headers: { 'Accept': 'application/json', 'User-Agent': 'SafeTraX-TravelApp/1.0' } })
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                var city = data.address.city || data.address.town || data.address.village || data.address.county || '';
+                var state = data.address.state || '';
+                var country = data.address.country || '';
+                var loc = [city, state, country].filter(Boolean).join(', ');
+                setLocationText(loc || data.display_name || 'Current location');
+                btnUse.textContent = 'Use my location';
+              })
+              .catch(function() { setLocationText(display.textContent); btnUse.textContent = 'Use my location'; });
+          },
+          function() { setLocationText(display.textContent); btnUse.textContent = 'Use my location'; }
+        );
+      });
+
+      if (btnChange && editRow) {
+        btnChange.addEventListener('click', function() {
+          editRow.classList.toggle('hidden');
+          if (!editRow.classList.contains('hidden')) input.focus();
+        });
+      }
+      if (btnSet && input) {
+        btnSet.addEventListener('click', function() {
+          var v = input.value.trim();
+          if (v) { setLocationText(v); input.value = ''; editRow.classList.add('hidden'); }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

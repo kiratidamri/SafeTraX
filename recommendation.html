@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTraX – Recommendation & risk analysis</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTraX</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Recommendation</p>
+  </header>
+
+  <main class="container">
+    <!-- Total risk score -->
+    <div class="card">
+      <h2>Overall risk score</h2>
+      <p style="font-size: 2rem; font-weight: 700; color: var(--primary);" id="total-risk">5</p>
+      <p style="font-size: 0.9rem; color: var(--text-muted);">Out of 10 — within 100 miles of your travel epicenter</p>
+      <p style="margin-top: 0.5rem;"><span class="risk-badge risk-4-6">4–6: Intermediate — be cautious</span></p>
+    </div>
+
+    <!-- Risk scale legend -->
+    <div class="card">
+      <h3 class="card-title">Risk scale</h3>
+      <p style="font-size: 0.85rem; margin-bottom: 0.5rem;"><span class="risk-badge risk-0-3">0–3</span> Lower safe — consider revising plans</p>
+      <p style="font-size: 0.85rem; margin-bottom: 0.5rem;"><span class="risk-badge risk-4-6">4–6</span> Intermediate — be cautious</p>
+      <p style="font-size: 0.85rem; margin-bottom: 0.5rem;"><span class="risk-badge risk-7-9">7–9</span> Higher safe — follow law & regulations</p>
+      <p style="font-size: 0.85rem;"><span class="risk-badge risk-10">10</span> Highest — no major concerns</p>
+    </div>
+
+    <!-- Map placeholder (integrate Google Maps in production) -->
+    <div class="card">
+      <h3 class="card-title">Area map — risk by sub-region</h3>
+      <div class="map-placeholder" id="map-container">
+        [Google Map: areas with risk score 0–10 by sub-region]
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Sub-regions within 100 miles of your destination show individual scores.</p>
+    </div>
+
+    <!-- Supporting links -->
+    <div class="card">
+      <h3 class="card-title">Official advisories</h3>
+      <ul class="link-list">
+        <li><a href="https://www.cdc.gov/travel" target="_blank" rel="noopener">CDC Travel Health</a></li>
+        <li><a href="https://www.who.int/emergencies" target="_blank" rel="noopener">WHO Emergencies</a></li>
+        <li><a href="#" target="_blank">Local government travel warning</a></li>
+      </ul>
+    </div>
+
+    <!-- Verify checklists & recommendations -->
+    <div class="card">
+      <h3 class="card-title">Verify your checklist</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Confirm items and choose recommendations to follow.</p>
+      <div class="check-item"><input type="checkbox" name="verify_immigration" id="v1"><label for="v1">Immigration requirements met</label></div>
+      <div class="check-item"><input type="checkbox" name="verify_health" id="v2"><label for="v2">Health & vaccinations verified</label></div>
+      <div class="check-item"><input type="checkbox" name="verify_law" id="v3"><label for="v3">Local law & regulations reviewed</label></div>
+      <div class="check-item"><input type="checkbox" name="verify_weather" id="v4"><label for="v4">Weather & seasonal risks checked</label></div>
+    </div>
+
+    <div class="card card-ads">
+      <span class="ad-badge">Ad</span>
+      <h3 class="card-title">Sponsored — recommendations you may follow</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Partners that can help (vaccines, transport, health). Choose what to follow.</p>
+      <div class="ads-list">
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Vaccine providers near you</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Travel health clinics</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Car rental & transport</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Hospitals & urgent care</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Drug stores & pharmacies</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Real-time notifications -->
+    <div class="card">
+      <h3 class="card-title">Real-time notifications</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">We'll send updates every 2 hours and confirm compliance during your trip.</p>
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 400;">
+        <input type="checkbox" name="realtime_notify" checked style="width: auto;">
+        Enable real-time notifications (every 2 hours)
+      </label>
+      <p style="font-size: 0.85rem; margin-top: 0.5rem;">Compliance status will be checked and you'll be notified if anything needs attention.</p>
+      <a href="realtime.html" class="btn btn-primary btn-block mt-2">Open real-time dashboard</a>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Use this when your travel date starts for live risk, weather & concerns.</p>
+    </div>
+  </main>
+
+  <nav class="nav-bottom">
+    <a href="index.html"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Travel plan</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="profile.html"><span class="icon-label">Profile</span></a>
+    <a href="realtime.html"><span class="icon-label">Real-time</span></a>
+  </nav>
+
+  <script>
+    // Optional: pass risk from travel-plan (e.g. query string) and render map
+    var params = new URLSearchParams(location.search);
+    if (params.get('risk')) document.getElementById('total-risk').textContent = params.get('risk');
+  </script>
+</body>
+</html>

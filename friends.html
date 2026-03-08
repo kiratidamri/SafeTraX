@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTraX – Friends</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTraX</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Friends</p>
+  </header>
+
+  <main class="container">
+    <!-- Add friend (has account) -->
+    <div class="card">
+      <h2>Add friend</h2>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Search by email to add someone who already has a SafeTraX account.</p>
+      <form id="add-friend-form">
+        <p>
+          <label for="friend-email">Friend's email</label>
+          <input type="email" id="friend-email" name="friend_email" placeholder="friend@example.com" required>
+        </p>
+        <p>
+          <button type="submit" class="btn btn-primary">Send request</button>
+        </p>
+      </form>
+      <p id="add-friend-msg" class="form-msg hidden"></p>
+    </div>
+
+    <!-- Invite friend (no account) -->
+    <div class="card">
+      <h2>Invite friend</h2>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Send an invite to someone who doesn't have an account yet.</p>
+      <form id="invite-friend-form">
+        <label for="invite-email">Email address</label>
+        <input type="email" id="invite-email" name="invite_email" placeholder="email@example.com" required>
+        <label for="invite-message">Optional message</label>
+        <textarea id="invite-message" name="invite_message" rows="2" placeholder="Join me on SafeTraX for travel safety..."></textarea>
+        <button type="submit" class="btn btn-primary btn-block">Send invite</button>
+      </form>
+      <p class="auth-divider">or</p>
+      <p style="font-size: 0.9rem; margin-bottom: 0.5rem;">Share your invite link</p>
+      <div class="invite-link-row">
+        <input type="text" id="invite-link" readonly value="https://safetrax.app/join?ref=your-id">
+        <button type="button" class="btn btn-secondary" id="copy-invite-link">Copy link</button>
+      </div>
+      <p id="invite-msg" class="form-msg hidden"></p>
+    </div>
+
+    <!-- Friend list -->
+    <div class="card">
+      <h3 class="card-title">My friends</h3>
+      <ul class="friend-list" id="friend-list">
+        <li class="friend-item">
+          <span class="friend-name">Jane D.</span>
+          <span class="friend-email">jane@example.com</span>
+          <span class="friend-status status-active">SafeTraX user</span>
+        </li>
+        <li class="friend-item">
+          <span class="friend-name">Mike T.</span>
+          <span class="friend-email">mike@example.com</span>
+          <span class="friend-status status-pending">Pending</span>
+        </li>
+        <li class="friend-item friend-empty" id="friend-empty">
+          <span>No other friends yet. Add or invite above.</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Pending requests (received) -->
+    <div class="card">
+      <h3 class="card-title">Friend requests</h3>
+      <ul class="friend-list" id="requests-list">
+        <li class="friend-item request-item">
+          <span class="friend-name">Alex K.</span>
+          <span class="friend-email">alex@example.com</span>
+          <div class="friend-actions">
+            <button type="button" class="btn btn-primary btn-sm">Accept</button>
+            <button type="button" class="btn btn-outline btn-sm">Decline</button>
+          </div>
+        </li>
+        <li class="friend-item friend-empty" id="requests-empty">
+          <span>No pending requests.</span>
+        </li>
+      </ul>
+    </div>
+  </main>
+
+  <nav class="nav-bottom">
+    <a href="index.html"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Travel plan</span></a>
+    <a href="friends.html" class="active"><span class="icon-label">Friends</span></a>
+    <a href="profile.html"><span class="icon-label">Profile</span></a>
+    <a href="realtime.html"><span class="icon-label">Real-time</span></a>
+  </nav>
+
+  <script>
+    document.getElementById('add-friend-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var msg = document.getElementById('add-friend-msg');
+      msg.textContent = 'Friend request sent. They\'ll see it in Friend requests.';
+      msg.classList.remove('hidden');
+      msg.style.color = 'var(--success)';
+    });
+
+    document.getElementById('invite-friend-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var msg = document.getElementById('invite-msg');
+      msg.textContent = 'Invite sent to ' + document.getElementById('invite-email').value + '.';
+      msg.classList.remove('hidden');
+      msg.style.color = 'var(--success)';
+    });
+
+    document.getElementById('copy-invite-link').addEventListener('click', function() {
+      var input = document.getElementById('invite-link');
+      var msg = document.getElementById('invite-msg');
+      var text = input.value;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          msg.textContent = 'Link copied to clipboard.';
+          msg.classList.remove('hidden');
+          msg.style.color = 'var(--primary)';
+        });
+      } else {
+        input.select();
+        document.execCommand('copy');
+        msg.textContent = 'Link copied to clipboard.';
+        msg.classList.remove('hidden');
+        msg.style.color = 'var(--primary)';
+      }
+    });
+  </script>
+</body>
+</html>

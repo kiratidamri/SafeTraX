@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTraX – Sign up</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTraX</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Create your account</p>
+  </header>
+
+  <main class="container">
+    <form id="signup-form" action="index.html" method="get">
+      <div class="card">
+        <h2>Personal information</h2>
+        <label for="name">Full name</label>
+        <input type="text" id="name" name="name" placeholder="First and last name" required>
+
+        <label for="dob">Date of birth</label>
+        <input type="date" id="dob" name="dob" required>
+
+        <label for="address">Address</label>
+        <input type="text" id="address" name="address" placeholder="Street, city, state, ZIP" required>
+
+        <label for="phone">Phone number</label>
+        <input type="tel" id="phone" name="phone" placeholder="+1 (555) 000-0000" required>
+
+        <label for="signup-email">Email</label>
+        <input type="email" id="signup-email" name="email" placeholder="you@example.com" required>
+
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" name="password" placeholder="••••••••" required>
+
+        <label for="confirm-password">Confirm password</label>
+        <input type="password" id="confirm-password" name="confirm_password" placeholder="••••••••" required>
+      </div>
+
+      <div class="card">
+        <h2>Emergency contact</h2>
+        <label for="emergency-name">Emergency contact name</label>
+        <input type="text" id="emergency-name" name="emergency_name" placeholder="Full name" required>
+
+        <label for="emergency-phone">Emergency contact phone</label>
+        <input type="tel" id="emergency-phone" name="emergency_phone" placeholder="+1 (555) 000-0000" required>
+      </div>
+
+      <div class="card">
+        <h2>Citizenship & physical</h2>
+        <label for="citizenship">Citizenship</label>
+        <select id="citizenship" name="citizenship" required>
+          <option value="">Select country</option>
+          <option value="US">United States</option>
+          <option value="other">Other (specify in notes)</option>
+        </select>
+
+        <label for="height">Height (feet)</label>
+        <input type="number" id="height" name="height" placeholder="e.g. 5.8" min="3" max="8" step="0.1">
+
+        <label for="weight">Weight (lbs)</label>
+        <input type="number" id="weight" name="weight" placeholder="e.g. 150" min="50" max="500">
+
+        <label for="blood">Blood type</label>
+        <select id="blood" name="blood">
+          <option value="">Select</option>
+          <option value="A+">A+</option>
+          <option value="A-">A-</option>
+          <option value="B+">B+</option>
+          <option value="B-">B-</option>
+          <option value="AB+">AB+</option>
+          <option value="AB-">AB-</option>
+          <option value="O+">O+</option>
+          <option value="O-">O-</option>
+        </select>
+
+        <label for="race">Race / ethnicity</label>
+        <input type="text" id="race" name="race" placeholder="Optional">
+      </div>
+
+      <div class="card">
+        <h2>Health concerns</h2>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Check all that apply</p>
+        <div class="health-checklist">
+          <label><input type="checkbox" name="health" value="allergies"> Allergies</label>
+          <label><input type="checkbox" name="health" value="diabetes"> Diabetes</label>
+          <label><input type="checkbox" name="health" value="stroke"> History of stroke</label>
+          <label><input type="checkbox" name="health" value="hypertension"> High blood pressure</label>
+          <label><input type="checkbox" name="health" value="heart"> Heart condition</label>
+          <label><input type="checkbox" name="health" value="asthma"> Asthma</label>
+          <label><input type="checkbox" name="health" value="epilepsy"> Epilepsy</label>
+          <label><input type="checkbox" name="health" value="kidney"> Kidney disease</label>
+          <label><input type="checkbox" name="health" value="immune"> Weakened immune system</label>
+          <label><input type="checkbox" name="health" value="pregnancy"> Pregnancy</label>
+        </div>
+        <label for="health-other" class="mt-2">Other health concerns</label>
+        <textarea id="health-other" name="health_other" rows="2" placeholder="Describe any other conditions"></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Vaccination history</h2>
+        <label for="vaccination">Vaccination history</label>
+        <textarea id="vaccination" name="vaccination" rows="3" placeholder="List recent vaccines (e.g. COVID-19, flu, yellow fever) and dates"></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Additional note</h2>
+        <textarea id="additional-note" name="additional_note" rows="3" placeholder="Any other information for travel safety"></textarea>
+      </div>
+
+      <div class="card consent-box">
+        <h2>Consent & digital signature</h2>
+        <p style="font-size: 0.9rem; margin-bottom: 0.75rem;">
+          I understand that SafeTraX is a health and travel advisory app. I consent to the analysis of my health and travel data to receive context-aware travel risk and advisory through the SafeTraX Hub. I have read and agree to the terms.
+        </p>
+        <label for="consent-check">I agree and consent</label>
+        <input type="checkbox" id="consent-check" name="consent" required style="width: auto; margin-bottom: 0.5rem;">
+        <label for="signature">Digital signature (type your full name)</label>
+        <input type="text" id="signature" name="signature" placeholder="Full legal name" required>
+        <div class="signature-line">Date: <span id="sign-date"></span></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Create account</button>
+      <p class="text-center mt-2" style="font-size: 0.9rem;">
+        <a href="index.html">Already have an account? Log in</a>
+      </p>
+    </form>
+  </main>
+
+  <script>
+    document.getElementById('sign-date').textContent = new Date().toLocaleDateString();
+    document.getElementById('signup-form').addEventListener('submit', function(e) {
+      var p1 = document.getElementById('signup-password').value;
+      var p2 = document.getElementById('confirm-password').value;
+      if (p1 !== p2) {
+        e.preventDefault();
+        alert('Passwords do not match.');
+        return false;
+      }
+      var form = document.getElementById('signup-form');
+      var data = new FormData(form);
+      data.forEach(function(value, key) {
+        try { localStorage.setItem('safetrax_' + key, value); } catch (err) {}
+      });
+      var date = new Date().toLocaleDateString();
+      try { localStorage.setItem('safetrax_sign_date', date); } catch (err) {}
+      document.querySelectorAll('input[name="health"]').forEach(function(cb) {
+        try { localStorage.setItem('safetrax_health_' + cb.value, cb.checked ? 'on' : ''); } catch (err) {}
+      });
+    });
+  </script>
+</body>
+</html>

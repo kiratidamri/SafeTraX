@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTraX – Profile</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTraX</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Your account</p>
+  </header>
+
+  <main class="container">
+    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Information you provided when you registered.</p>
+
+    <div class="card">
+      <h2>Personal information</h2>
+      <div class="profile-field"><span class="profile-label">Full name</span><span class="profile-value" id="profile-name">—</span></div>
+      <div class="profile-field"><span class="profile-label">Date of birth</span><span class="profile-value" id="profile-dob">—</span></div>
+      <div class="profile-field"><span class="profile-label">Address</span><span class="profile-value" id="profile-address">—</span></div>
+      <div class="profile-field"><span class="profile-label">Phone number</span><span class="profile-value" id="profile-phone">—</span></div>
+      <div class="profile-field"><span class="profile-label">Email</span><span class="profile-value" id="profile-email">—</span></div>
+      <div class="profile-field"><span class="profile-label">Password</span><span class="profile-value">••••••••</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Emergency contact</h2>
+      <div class="profile-field"><span class="profile-label">Name</span><span class="profile-value" id="profile-emergency-name">—</span></div>
+      <div class="profile-field"><span class="profile-label">Phone</span><span class="profile-value" id="profile-emergency-phone">—</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Citizenship & physical</h2>
+      <div class="profile-field"><span class="profile-label">Citizenship</span><span class="profile-value" id="profile-citizenship">—</span></div>
+      <div class="profile-field"><span class="profile-label">Height (feet)</span><span class="profile-value" id="profile-height">—</span></div>
+      <div class="profile-field"><span class="profile-label">Weight (lbs)</span><span class="profile-value" id="profile-weight">—</span></div>
+      <div class="profile-field"><span class="profile-label">Blood type</span><span class="profile-value" id="profile-blood">—</span></div>
+      <div class="profile-field"><span class="profile-label">Race / ethnicity</span><span class="profile-value" id="profile-race">—</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Health concerns</h2>
+      <div class="profile-value" id="profile-health-list">—</div>
+      <div class="profile-field mt-1"><span class="profile-label">Other health concerns</span><span class="profile-value" id="profile-health-other">—</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Vaccination history</h2>
+      <div class="profile-value profile-value-block" id="profile-vaccination">—</div>
+    </div>
+
+    <div class="card">
+      <h2>Additional note</h2>
+      <div class="profile-value profile-value-block" id="profile-additional-note">—</div>
+    </div>
+
+    <div class="card consent-box">
+      <h2>Consent</h2>
+      <p style="font-size: 0.9rem; margin-bottom: 0.5rem;">You agreed to SafeTraX terms and context-aware travel risk and advisory.</p>
+      <div class="profile-field"><span class="profile-label">Signed</span><span class="profile-value" id="profile-signature">—</span></div>
+      <div class="profile-field"><span class="profile-label">Date</span><span class="profile-value" id="profile-sign-date">—</span></div>
+    </div>
+
+    <a href="profile-edit.html" class="btn btn-primary btn-block">Edit profile</a>
+    <p class="text-center mt-2" style="font-size: 0.9rem;">
+      <a href="index.html">Back to home</a>
+    </p>
+  </main>
+
+  <nav class="nav-bottom">
+    <a href="index.html"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Travel plan</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="profile.html" class="active"><span class="icon-label">Profile</span></a>
+    <a href="realtime.html"><span class="icon-label">Real-time</span></a>
+  </nav>
+
+  <script>
+    // Load profile from localStorage (saved on signup in production); fallback to demo or —
+    function getStored(name) {
+      try {
+        var v = localStorage.getItem('safetrax_' + name);
+        return v !== null && v !== '' ? v : '—';
+      } catch (e) { return '—'; }
+    }
+    document.getElementById('profile-name').textContent = getStored('name');
+    document.getElementById('profile-dob').textContent = getStored('dob');
+    document.getElementById('profile-address').textContent = getStored('address');
+    document.getElementById('profile-phone').textContent = getStored('phone');
+    document.getElementById('profile-email').textContent = getStored('email');
+    document.getElementById('profile-emergency-name').textContent = getStored('emergency_name');
+    document.getElementById('profile-emergency-phone').textContent = getStored('emergency_phone');
+    document.getElementById('profile-citizenship').textContent = getStored('citizenship') === 'US' ? 'United States' : getStored('citizenship');
+    document.getElementById('profile-height').textContent = getStored('height');
+    document.getElementById('profile-weight').textContent = getStored('weight');
+    document.getElementById('profile-blood').textContent = getStored('blood');
+    document.getElementById('profile-race').textContent = getStored('race');
+    document.getElementById('profile-health-other').textContent = getStored('health_other');
+    document.getElementById('profile-vaccination').textContent = getStored('vaccination');
+    document.getElementById('profile-additional-note').textContent = getStored('additional_note');
+    document.getElementById('profile-signature').textContent = getStored('signature');
+    document.getElementById('profile-sign-date').textContent = getStored('sign_date');
+    var health = [];
+    ['allergies','diabetes','stroke','hypertension','heart','asthma','epilepsy','kidney','immune','pregnancy'].forEach(function(key) {
+      if (localStorage.getItem('safetrax_health_' + key) === 'on') health.push(key.replace(/_/g, ' '));
+    });
+    document.getElementById('profile-health-list').textContent = health.length ? health.join(', ') : '—';
+  </script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTraX</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTraX</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Travel safety & risk advisory</p>
+    <!-- Login & Sign up on top -->
+    <div class="auth-bar" id="auth-bar">
+      <form class="auth-bar-form" id="login-form" action="#" method="post">
+        <input type="email" id="email" name="email" placeholder="Email" required aria-label="Email">
+        <input type="password" id="password" name="password" placeholder="Password" required aria-label="Password">
+        <button type="submit" class="btn btn-auth">Log in</button>
+      </form>
+      <a href="signup.html" class="btn btn-auth-outline">Sign up</a>
+    </div>
+    <div class="auth-bar logged-in hidden" id="auth-bar-loggedin">
+      <span class="auth-bar-user">You’re logged in</span>
+      <button type="button" class="btn btn-auth-outline" id="logout-btn">Log out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- General content: always visible -->
+    <section id="general">
+      <!-- Temperature & quick info (general) -->
+      <div class="widget-row">
+        <div class="widget">
+          <span class="value" id="temp-value">--°F</span>
+          <span class="label">Temperature</span>
+        </div>
+        <div class="widget">
+          <span class="value" id="risk-value">--</span>
+          <span class="label">Current risk</span>
+        </div>
+      </div>
+
+      <!-- News feed from CDC, WHO (general) -->
+      <div class="card">
+        <h3 class="card-title">News & advisories</h3>
+        <div class="news-item">
+          <span class="source">CDC</span>
+          <p class="title">Travel health notices and vaccination updates.</p>
+        </div>
+        <div class="news-item">
+          <span class="source">WHO</span>
+          <p class="title">International health regulations and outbreak alerts.</p>
+        </div>
+        <div class="news-item">
+          <span class="source">Local</span>
+          <p class="title">Government travel warnings and entry requirements.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Shown when user is logged in -->
+    <section id="dashboard" class="hidden">
+      <div class="quick-actions">
+        <a href="travel-plan.html" class="btn btn-primary">Travel plan</a>
+        <a href="friends.html" class="btn btn-secondary">Friends</a>
+        <a href="#" class="btn btn-secondary">History</a>
+        <a href="profile.html" class="btn btn-secondary">Profile</a>
+        <a href="realtime.html" class="btn btn-secondary">Real-time</a>
+      </div>
+      <div class="card">
+        <h3 class="card-title">To-do</h3>
+        <div class="todo-item">
+          <input type="checkbox" id="todo1">
+          <span>Review travel plan checklist</span>
+        </div>
+        <div class="todo-item">
+          <input type="checkbox" id="todo2">
+          <span>Check vaccination requirements</span>
+        </div>
+        <div class="todo-item">
+          <input type="checkbox" id="todo3">
+          <span>Confirm emergency contacts</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="nav-bottom hidden" id="nav-bottom">
+    <a href="index.html" class="active"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Travel plan</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="profile.html"><span class="icon-label">Profile</span></a>
+    <a href="realtime.html"><span class="icon-label">Real-time</span></a>
+  </nav>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      document.getElementById('auth-bar').classList.add('hidden');
+      document.getElementById('auth-bar-loggedin').classList.remove('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('nav-bottom').classList.remove('hidden');
+      document.getElementById('temp-value').textContent = '72°F';
+      document.getElementById('risk-value').textContent = 'Low';
+    });
+    document.getElementById('logout-btn').addEventListener('click', function() {
+      document.getElementById('auth-bar').classList.remove('hidden');
+      document.getElementById('auth-bar-loggedin').classList.add('hidden');
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('nav-bottom').classList.add('hidden');
+      document.getElementById('temp-value').textContent = '--°F';
+      document.getElementById('risk-value').textContent = '--';
+    });
+  </script>
+</body>
+</html>
