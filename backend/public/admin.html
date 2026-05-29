@@ -152,6 +152,9 @@
       gap: 16px;
       margin-bottom: 24px;
     }
+    @media (max-width: 1200px) {
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    }
     .kpi-card {
       background: var(--card-bg);
       border-radius: 10px;
@@ -505,6 +508,9 @@
     <div class="nav-item" data-section="risk">
       <span class="nav-icon">&#9888;</span> Risk Intel
     </div>
+    <div class="nav-item" data-section="plans">
+      <span class="nav-icon">&#9992;</span> Travel Plans
+    </div>
     <div class="nav-item" data-section="ai">
       <span class="nav-icon">&#129302;</span> AI Analyst
     </div>
@@ -558,6 +564,16 @@
           <div class="kpi-value" id="kpiInsured">—</div>
           <div class="kpi-sub" id="kpiInsuredSub">of total</div>
         </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Plans with Hotel</div>
+          <div class="kpi-value" id="kpiHotel">—</div>
+          <div class="kpi-sub" id="kpiHotelSub">have accommodation info</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Plans with Flight</div>
+          <div class="kpi-value" id="kpiFlight">—</div>
+          <div class="kpi-sub" id="kpiFlightSub">have flight info</div>
+        </div>
       </div>
 
       <!-- Charts row 1 -->
@@ -610,9 +626,13 @@
 
       <!-- Charts row 5 -->
       <div class="chart-row">
-        <div class="chart-card" style="flex: 1;">
+        <div class="chart-card">
           <div class="chart-title">Vaccination Coverage</div>
           <div class="chart-wrap"><canvas id="vaccChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Top Airlines</div>
+          <div class="chart-wrap"><canvas id="airlineChart"></canvas></div>
         </div>
       </div>
     </div>
@@ -651,6 +671,39 @@
             <button class="page-btn" id="prevBtn" onclick="changePage(-1)">&#8592; Prev</button>
             <span id="pageInfo">Page 1 of 1</span>
             <button class="page-btn" id="nextBtn" onclick="changePage(1)">Next &#8594;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION: Travel Plans ── -->
+    <div class="section" id="section-plans">
+      <div class="table-card">
+        <div class="table-header">
+          <h2>Travel Plans</h2>
+          <input type="text" class="search-box" id="planSearch" placeholder="Search by user, destination, airline..."/>
+        </div>
+        <div id="plansLoading" class="loading"><span class="spinner"></span>Loading plans...</div>
+        <div id="plansTableWrap" style="display:none;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Traveler</th>
+                <th>Route</th>
+                <th>Dates</th>
+                <th>Transport</th>
+                <th>Hotel</th>
+                <th>Flight</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="plansBody"></tbody>
+          </table>
+          <div class="pagination">
+            <button class="page-btn" id="planPrevBtn" onclick="changePlanPage(-1)">&#8592; Prev</button>
+            <span id="planPageInfo">Page 1 of 1</span>
+            <button class="page-btn" id="planNextBtn" onclick="changePlanPage(1)">Next &#8594;</button>
           </div>
         </div>
       </div>
@@ -741,6 +794,12 @@
 
   let chatHistory   = [];  // [{role, content}]
 
+  let plansPage     = 1;
+  let plansTotal    = 0;
+  let plansLimit    = 25;
+  let plansSearch   = '';
+  let plansTimer    = null;
+
   // ── Chart palette ──────────────────────────────────────────────────────────
   const PALETTE = ['#548AB8','#6fa3cc','#3a6a95','#4a8fc4','#a8cce4','#d6e4f0'];
 
@@ -748,6 +807,7 @@
   const SECTION_NAMES = {
     overview: 'Overview',
     users:    'Users',
+    plans:    'Travel Plans',
     risk:     'Risk Intel',
     ai:       'AI Analyst',
   };
@@ -762,6 +822,7 @@
       document.getElementById('topbarTitle').textContent = SECTION_NAMES[sec] || sec;
 
       if (sec === 'users' && usersTotal === 0) loadUsers();
+      if (sec === 'plans' && plansTotal === 0) loadPlans();
       if (sec === 'risk' && statsData) renderRiskTable(statsData.topRisks, statsData.kpis);
     });
   });
@@ -971,6 +1032,10 @@
       document.getElementById('kpiInsured').textContent = data.insuredCount ?? data.kpis.insuredUsers ?? '—';
       document.getElementById('kpiInsuredSub').textContent = 'of ' + (data.kpis.totalUsers ?? '—') + ' users';
     }
+    document.getElementById('kpiHotel').textContent  = fmt(data.plansWithHotel ?? 0);
+    document.getElementById('kpiHotelSub').textContent  = 'of ' + fmt(data.kpis ? data.kpis.totalPlans : 0) + ' total plans';
+    document.getElementById('kpiFlight').textContent = fmt(data.plansWithFlight ?? 0);
+    document.getElementById('kpiFlightSub').textContent = 'of ' + fmt(data.kpis ? data.kpis.totalPlans : 0) + ' total plans';
   }
 
   // ── New Charts ─────────────────────────────────────────────────────────────
@@ -1043,6 +1108,28 @@
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
       });
+    }
+
+    // Top airlines chart
+    if (data.airlineRows && data.airlineRows.length) {
+      new Chart(document.getElementById('airlineChart'), {
+        type: 'bar',
+        data: {
+          labels: data.airlineRows.map(function(r) { return r.airline; }),
+          datasets: [{ label: 'Trips', backgroundColor: PALETTE,
+            data: data.airlineRows.map(function(r) { return r.count; }),
+            borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } }
+        }
+      });
+    } else {
+      document.getElementById('airlineChart').parentElement.innerHTML =
+        '<div style="color:#a0aec0;font-size:13px;text-align:center;padding:60px 0;">No airline data yet — add flights in travel plans</div>';
     }
   }
 
@@ -1213,6 +1300,81 @@
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
     return div;
+  }
+
+  // ── Travel Plans section ───────────────────────────────────────────────────
+  document.getElementById('planSearch').addEventListener('input', function(e) {
+    clearTimeout(plansTimer);
+    var val = e.target.value.trim();
+    plansTimer = setTimeout(function() {
+      plansSearch = val;
+      plansPage = 1;
+      loadPlans();
+    }, 350);
+  });
+
+  function loadPlans() {
+    document.getElementById('plansLoading').style.display = 'block';
+    document.getElementById('plansTableWrap').style.display = 'none';
+
+    var url = API + '/api/admin/plans?page=' + plansPage + '&limit=' + plansLimit;
+    if (plansSearch) url += '&search=' + encodeURIComponent(plansSearch);
+
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        plansTotal = data.total;
+        renderPlansTable(data.plans);
+        renderPlanPagination(data.page, Math.ceil(data.total / data.limit));
+        document.getElementById('plansLoading').style.display = 'none';
+        document.getElementById('plansTableWrap').style.display = 'block';
+      })
+      .catch(function(err) {
+        document.getElementById('plansLoading').textContent = 'Error loading plans: ' + err.message;
+      });
+  }
+
+  function renderPlansTable(plans) {
+    var tbody = document.getElementById('plansBody');
+    if (!plans || plans.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a0aec0;padding:24px;">No travel plans found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = plans.map(function(p) {
+      var statusCls = p.status === 'active' ? 'tag-green' : p.status === 'completed' ? 'tag-blue' : 'tag-gray';
+      var hotel = p.hotel_name
+        ? '<span class="tag tag-blue">' + escHtml(p.hotel_name) + '</span>'
+        : '<span style="color:#a0aec0">—</span>';
+      var flight = (p.airline || p.flight_number)
+        ? '<span class="tag tag-blue">' + escHtml((p.airline || '') + (p.flight_number ? ' ' + p.flight_number : '')) + '</span>' +
+          (p.depart_airport && p.arrive_airport
+            ? '<br><span style="font-size:11px;color:#718096;">' + escHtml(p.depart_airport) + ' → ' + escHtml(p.arrive_airport) + '</span>'
+            : '')
+        : '<span style="color:#a0aec0">—</span>';
+
+      return '<tr>' +
+        '<td style="color:#a0aec0;">' + p.id + '</td>' +
+        '<td><strong>' + escHtml(p.user_name || '') + '</strong><br>' +
+          '<span style="font-size:11px;color:#718096;">' + escHtml(p.user_email || '') + '</span></td>' +
+        '<td style="font-size:12px;">' + escHtml(p.route || '—') + '</td>' +
+        '<td style="font-size:12px;white-space:nowrap;">' + (p.date_start || '—') + '<br>' + (p.date_end || '') + '</td>' +
+        '<td><span class="tag tag-gray">' + escHtml(p.transport || '—') + '</span></td>' +
+        '<td>' + hotel + '</td>' +
+        '<td>' + flight + '</td>' +
+        '<td><span class="tag ' + statusCls + '">' + escHtml(p.status || 'active') + '</span></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function renderPlanPagination(page, totalPages) {
+    document.getElementById('planPageInfo').textContent = 'Page ' + page + ' of ' + (totalPages || 1);
+    document.getElementById('planPrevBtn').disabled = page <= 1;
+    document.getElementById('planNextBtn').disabled = page >= totalPages;
+  }
+
+  function changePlanPage(delta) {
+    plansPage = Math.max(1, plansPage + delta);
+    loadPlans();
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

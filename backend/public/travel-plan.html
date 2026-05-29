@@ -8,6 +8,51 @@
   <link rel="stylesheet" href="styles.css">
   <style>
     .city-other-input { margin-top: 6px; }
+
+    /* Hotel & Flight collapsible */
+    .travel-details-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-top: 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+      letter-spacing: 0.01em;
+    }
+    .travel-details-toggle .toggle-arrow {
+      display: inline-block;
+      transition: transform 0.2s;
+      font-size: 0.75rem;
+    }
+    .travel-details-toggle.open .toggle-arrow { transform: rotate(90deg); }
+    .travel-details-panel {
+      display: none;
+      margin-top: 10px;
+      padding: 12px 14px;
+      background: #f4f8fc;
+      border-radius: var(--radius-sm);
+      border: 1px solid #dce8f4;
+    }
+    .travel-details-panel.open { display: block; }
+    .travel-details-panel .detail-section { margin-bottom: 14px; }
+    .travel-details-panel .detail-section:last-child { margin-bottom: 0; }
+    .travel-details-panel .detail-section h5 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin: 0 0 8px;
+    }
+    .travel-details-panel input[type="text"] {
+      margin-bottom: 6px;
+    }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   </style>
 </head>
 <body>
@@ -17,7 +62,7 @@
   </header>
 
   <main class="container">
-    <form id="travel-form" action="recommendation.html" method="get">
+    <form id="travel-form">
       <div class="card">
         <h2>Destination</h2>
         <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.75rem;">
@@ -524,6 +569,29 @@
             '<datalist id="city-dl-' + n + '"></datalist>' +
           '</div>' +
         '</div>' +
+
+        // Hotel & Flight collapsible
+        '<button type="button" class="travel-details-toggle" data-panel="details-' + n + '">' +
+          '<span class="toggle-arrow">▶</span> Hotel &amp; Flight (optional)' +
+        '</button>' +
+        '<div class="travel-details-panel" id="details-' + n + '">' +
+          '<div class="detail-section">' +
+            '<h5>Accommodation</h5>' +
+            '<input type="text" name="hotel_name_' + n + '" placeholder="Hotel / accommodation name" autocomplete="off">' +
+            '<input type="text" name="hotel_booking_' + n + '" placeholder="Booking reference or address" autocomplete="off">' +
+          '</div>' +
+          '<div class="detail-section">' +
+            '<h5>Flight</h5>' +
+            '<div class="two-col">' +
+              '<input type="text" name="airline_' + n + '" placeholder="Airline" autocomplete="off">' +
+              '<input type="text" name="flight_number_' + n + '" placeholder="Flight no. (e.g. AA123)" autocomplete="off" style="text-transform:uppercase">' +
+            '</div>' +
+            '<div class="two-col">' +
+              '<input type="text" name="depart_airport_' + n + '" placeholder="Depart airport (e.g. LAX)" autocomplete="off" style="text-transform:uppercase">' +
+              '<input type="text" name="arrive_airport_' + n + '" placeholder="Arrive airport (e.g. NRT)" autocomplete="off" style="text-transform:uppercase">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       (removable ? '<button type="button" class="btn btn-outline remove-dest">Remove</button>' : '');
 
@@ -581,30 +649,115 @@
     document.getElementById('destinations').appendChild(buildDestRow(true));
   });
 
-  // Prevent submitting if no city selected for a shown city panel
+  // Toggle hotel/flight panels
+  document.getElementById('destinations').addEventListener('click', function(e) {
+    var btn = e.target.closest('.travel-details-toggle');
+    if (!btn) return;
+    var panelId = btn.getAttribute('data-panel');
+    var panel = document.getElementById(panelId);
+    if (!panel) return;
+    btn.classList.toggle('open');
+    panel.classList.toggle('open');
+  });
+
+  // Form submission — collect data and POST to API, then navigate to recommendation
   document.getElementById('travel-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
     var rows = document.querySelectorAll('#destinations .destination-row');
     var ok = true;
+    var dests = [];
+
     rows.forEach(function(row) {
+      var n = row.getAttribute('data-dest');
       var countryVal = row.querySelector('.country-select').value;
-      if (!countryVal) return; // blank row is fine — skip
+      if (!countryVal) return;
+
       var cityWrap = row.querySelector('.city-wrap');
-      if (cityWrap.classList.contains('hidden')) return; // city not yet shown
       var hidden = row.querySelector('.city-hidden');
       var otherInput = row.querySelector('.city-other-input');
-      // If "other" path — use text input value
-      if (!hidden.value && otherInput && !otherInput.classList.contains('hidden')) {
-        hidden.value = otherInput.value.trim();
+      if (!cityWrap.classList.contains('hidden')) {
+        if (!hidden.value && otherInput) hidden.value = otherInput.value.trim();
+        if (!hidden.value) {
+          ok = false;
+          cityWrap.querySelector('.city-select').focus();
+          return;
+        }
       }
-      // No city chosen and city panel is visible
-      if (!hidden.value) {
-        ok = false;
-        cityWrap.querySelector('.city-select').focus();
+
+      var stateEl = row.querySelector('.state-select');
+      var stateVal = (stateEl && !stateEl.disabled) ? stateEl.value : null;
+
+      // Hotel & flight fields
+      function fv(name) {
+        var el = row.querySelector('[name="' + name + '_' + n + '"]');
+        return el ? el.value.trim() : null;
       }
+
+      dests.push({
+        country:        countryVal,
+        state:          stateVal || null,
+        city:           hidden.value || null,
+        hotel_name:     fv('hotel_name')    || null,
+        hotel_booking:  fv('hotel_booking') || null,
+        flight_number:  fv('flight_number') || null,
+        airline:        fv('airline')       || null,
+        depart_airport: fv('depart_airport')|| null,
+        arrive_airport: fv('arrive_airport')|| null
+      });
     });
+
     if (!ok) {
-      e.preventDefault();
       alert('Please select or enter a city for each destination.');
+      return;
+    }
+
+    var checklist = {};
+    document.querySelectorAll('[name^="check_"]').forEach(function(cb) {
+      checklist[cb.name] = cb.checked;
+    });
+
+    var user = null;
+    try { user = JSON.parse(localStorage.getItem('safetrax_user')); } catch(_) {}
+    var userId = user ? user.id : null;
+
+    var payload = {
+      user_id:    userId,
+      date_start: document.getElementById('date-start').value,
+      date_end:   document.getElementById('date-end').value,
+      transport:  document.getElementById('transport').value,
+      destinations: dests,
+      checklist:  checklist
+    };
+
+    // Build query string for recommendation.html
+    var qs = 'date_start=' + encodeURIComponent(payload.date_start) +
+             '&date_end='  + encodeURIComponent(payload.date_end) +
+             '&transport=' + encodeURIComponent(payload.transport || '');
+    dests.forEach(function(d, i) {
+      var idx = i + 1;
+      if (d.country)  qs += '&country_' + idx + '=' + encodeURIComponent(d.country);
+      if (d.state)    qs += '&state_' + idx   + '=' + encodeURIComponent(d.state);
+      if (d.city)     qs += '&city_' + idx    + '=' + encodeURIComponent(d.city);
+    });
+
+    // Save to API if logged in, then redirect
+    if (userId) {
+      fetch('/api/travel-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.id) qs += '&plan_id=' + data.id;
+        window.location.href = 'recommendation.html?' + qs;
+      })
+      .catch(function() {
+        window.location.href = 'recommendation.html?' + qs;
+      });
+    } else {
+      window.location.href = 'recommendation.html?' + qs;
     }
   });
   </script>

@@ -58,6 +58,12 @@ db.exec(schema);
   'ALTER TABLE users ADD COLUMN traveler_type      TEXT',
   'ALTER TABLE users ADD COLUMN insurance_status   INTEGER NOT NULL DEFAULT 0',
   'ALTER TABLE users ADD COLUMN vaccination_status TEXT',
+  'ALTER TABLE destinations ADD COLUMN hotel_name      TEXT',
+  'ALTER TABLE destinations ADD COLUMN hotel_booking   TEXT',
+  'ALTER TABLE destinations ADD COLUMN flight_number   TEXT',
+  'ALTER TABLE destinations ADD COLUMN airline         TEXT',
+  'ALTER TABLE destinations ADD COLUMN depart_airport  TEXT',
+  'ALTER TABLE destinations ADD COLUMN arrive_airport  TEXT',
 ].forEach(function(sql) {
   try { db.exec(sql); } catch(e) { /* column already exists */ }
 });
@@ -391,20 +397,26 @@ app.post('/api/travel-plans', (req, res) => {
     return res.status(400).json({ error: 'user_id, date_start, date_end are required' });
   }
 
-  const savePlan = db.transaction(() => {
+  let planId;
+  try {
+    db.exec('BEGIN');
+
     const plan = db.prepare(`
       INSERT INTO travel_plans (user_id, date_start, date_end, transport)
       VALUES (?,?,?,?)
     `).run(user_id, date_start, date_end, transport || null);
 
-    const planId = plan.lastInsertRowid;
+    planId = plan.lastInsertRowid;
 
     const insertDest = db.prepare(`
-      INSERT INTO destinations (travel_plan_id, seq, country_code, state_code, city)
-      VALUES (?,?,?,?,?)
+      INSERT INTO destinations (travel_plan_id, seq, country_code, state_code, city,
+        hotel_name, hotel_booking, flight_number, airline, depart_airport, arrive_airport)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
     `);
     (destinations || []).forEach((d, i) => {
-      insertDest.run(planId, i + 1, d.country, d.state || null, d.city || null);
+      insertDest.run(planId, i + 1, d.country, d.state || null, d.city || null,
+        d.hotel_name || null, d.hotel_booking || null, d.flight_number || null,
+        d.airline || null, d.depart_airport || null, d.arrive_airport || null);
     });
 
     const insertCheck = db.prepare(`
@@ -414,10 +426,12 @@ app.post('/api/travel-plans', (req, res) => {
       insertCheck.run(planId, key, val ? 1 : 0);
     }
 
-    return planId;
-  });
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    return res.status(500).json({ error: err.message });
+  }
 
-  const planId = savePlan();
   res.status(201).json({ id: planId });
 });
 
@@ -469,6 +483,11 @@ app.get('/api/trips', (req, res) => {
     GROUP BY tp.id
     ORDER BY tp.date_start DESC
   `).all(user_id);
+  // Attach per-destination details (hotel/flight) to each plan
+  const getDests = db.prepare(`
+    SELECT * FROM destinations WHERE travel_plan_id = ? ORDER BY seq
+  `);
+  plans.forEach(p => { p.destinations = getDests.all(p.id); });
   res.json({ plans });
 });
 
@@ -606,9 +625,16 @@ app.get('/api/admin/stats', (req, res) => {
     const sosTotal  = db.prepare(`SELECT COUNT(*) as c FROM sos_events`).get().c;
     const sosActive = db.prepare(`SELECT COUNT(*) as c FROM sos_events WHERE status='active'`).get().c;
 
+    // Hotel & flight coverage
+    const plansWithHotel  = db.prepare(`SELECT COUNT(DISTINCT travel_plan_id) as c FROM destinations WHERE hotel_name IS NOT NULL AND hotel_name != ''`).get().c;
+    const plansWithFlight = db.prepare(`SELECT COUNT(DISTINCT travel_plan_id) as c FROM destinations WHERE flight_number IS NOT NULL AND flight_number != ''`).get().c;
+
+    // Top airlines
+    const airlineRows = db.prepare(`SELECT airline, COUNT(*) as count FROM destinations WHERE airline IS NOT NULL AND airline != '' GROUP BY airline ORDER BY count DESC LIMIT 8`).all();
+
     res.json({ kpis, userGrowth, topDests, transport, healthCounts, citizenships, topRisks,
                freqRows, travelerTypeRows, insuredCount, purposeCounts, vaccCounts, ageBrackets,
-               sosTotal, sosActive });
+               sosTotal, sosActive, plansWithHotel, plansWithFlight, airlineRows });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -630,6 +656,46 @@ app.get('/api/admin/users', (req, res) => {
       ${where} GROUP BY u.id ORDER BY u.created_at DESC LIMIT ? OFFSET ?
     `).all(...params, limit, offset);
     res.json({ total, page, limit, users });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── GET /api/admin/plans ────────────────────────────────────────────────────
+app.get('/api/admin/plans', (req, res) => {
+  try {
+    const page   = parseInt(req.query.page)  || 1;
+    const limit  = Math.min(parseInt(req.query.limit) || 25, 100);
+    const offset = (page - 1) * limit;
+    const search = req.query.search ? `%${req.query.search}%` : null;
+    const where  = search ? `WHERE (u.name LIKE ? OR u.email LIKE ? OR d.country_code LIKE ? OR d.city LIKE ? OR d.airline LIKE ?)` : '';
+    const params = search ? [search, search, search, search, search] : [];
+
+    const total = db.prepare(`
+      SELECT COUNT(DISTINCT tp.id) as c
+      FROM travel_plans tp
+      JOIN users u ON u.id = tp.user_id
+      LEFT JOIN destinations d ON d.travel_plan_id = tp.id
+      ${where}
+    `).get(...params).c;
+
+    const plans = db.prepare(`
+      SELECT tp.id, tp.date_start, tp.date_end, tp.transport, tp.status, tp.created_at,
+             u.name as user_name, u.email as user_email,
+             GROUP_CONCAT(d.city || ' (' || d.country_code || ')', ' → ') as route,
+             MAX(d.hotel_name) as hotel_name,
+             MAX(d.airline) as airline,
+             MAX(d.flight_number) as flight_number,
+             MAX(d.depart_airport) as depart_airport,
+             MAX(d.arrive_airport) as arrive_airport
+      FROM travel_plans tp
+      JOIN users u ON u.id = tp.user_id
+      LEFT JOIN destinations d ON d.travel_plan_id = tp.id
+      ${where}
+      GROUP BY tp.id
+      ORDER BY tp.created_at DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, limit, offset);
+
+    res.json({ total, page, limit, plans });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
