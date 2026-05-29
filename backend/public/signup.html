@@ -54,7 +54,52 @@
         <select id="citizenship" name="citizenship" required>
           <option value="">Select country</option>
           <option value="US">United States</option>
-          <option value="other">Other (specify in notes)</option>
+          <option value="GB">United Kingdom</option>
+          <option value="CA">Canada</option>
+          <option value="AU">Australia</option>
+          <option value="NZ">New Zealand</option>
+          <option value="DE">Germany</option>
+          <option value="FR">France</option>
+          <option value="IT">Italy</option>
+          <option value="ES">Spain</option>
+          <option value="NL">Netherlands</option>
+          <option value="SE">Sweden</option>
+          <option value="NO">Norway</option>
+          <option value="DK">Denmark</option>
+          <option value="FI">Finland</option>
+          <option value="CH">Switzerland</option>
+          <option value="AT">Austria</option>
+          <option value="BE">Belgium</option>
+          <option value="PT">Portugal</option>
+          <option value="GR">Greece</option>
+          <option value="PL">Poland</option>
+          <option value="JP">Japan</option>
+          <option value="KR">South Korea</option>
+          <option value="CN">China</option>
+          <option value="IN">India</option>
+          <option value="SG">Singapore</option>
+          <option value="TH">Thailand</option>
+          <option value="MY">Malaysia</option>
+          <option value="ID">Indonesia</option>
+          <option value="PH">Philippines</option>
+          <option value="VN">Vietnam</option>
+          <option value="AE">United Arab Emirates</option>
+          <option value="SA">Saudi Arabia</option>
+          <option value="IL">Israel</option>
+          <option value="TR">Turkey</option>
+          <option value="ZA">South Africa</option>
+          <option value="NG">Nigeria</option>
+          <option value="KE">Kenya</option>
+          <option value="EG">Egypt</option>
+          <option value="MA">Morocco</option>
+          <option value="BR">Brazil</option>
+          <option value="MX">Mexico</option>
+          <option value="AR">Argentina</option>
+          <option value="CL">Chile</option>
+          <option value="CO">Colombia</option>
+          <option value="RU">Russia</option>
+          <option value="UA">Ukraine</option>
+          <option value="other">Other</option>
         </select>
 
         <label for="height">Height (feet)</label>
@@ -101,8 +146,61 @@
 
       <div class="card">
         <h2>Vaccination history</h2>
-        <label for="vaccination">Vaccination history</label>
-        <textarea id="vaccination" name="vaccination" rows="3" placeholder="List recent vaccines (e.g. COVID-19, flu, yellow fever) and dates"></textarea>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Select all vaccines you have received</p>
+        <div class="health-checklist">
+          <label><input type="checkbox" name="vaccine" value="covid19"> COVID-19</label>
+          <label><input type="checkbox" name="vaccine" value="flu"> Influenza (Flu)</label>
+          <label><input type="checkbox" name="vaccine" value="hepatitis_a"> Hepatitis A</label>
+          <label><input type="checkbox" name="vaccine" value="hepatitis_b"> Hepatitis B</label>
+          <label><input type="checkbox" name="vaccine" value="typhoid"> Typhoid</label>
+          <label><input type="checkbox" name="vaccine" value="yellow_fever"> Yellow Fever</label>
+          <label><input type="checkbox" name="vaccine" value="malaria"> Malaria (prophylaxis)</label>
+          <label><input type="checkbox" name="vaccine" value="rabies"> Rabies</label>
+          <label><input type="checkbox" name="vaccine" value="mmr"> MMR (Measles, Mumps, Rubella)</label>
+          <label><input type="checkbox" name="vaccine" value="tetanus"> Tetanus / Tdap</label>
+          <label><input type="checkbox" name="vaccine" value="meningococcal"> Meningococcal</label>
+          <label><input type="checkbox" name="vaccine" value="japanese_encephalitis"> Japanese Encephalitis</label>
+        </div>
+        <label for="vaccination" class="mt-2">Additional vaccination notes</label>
+        <textarea id="vaccination" name="vaccination" rows="2" placeholder="Dates, boosters, or other vaccines not listed above"></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Travel profile</h2>
+
+        <label for="travel-frequency">How often do you travel internationally?</label>
+        <select id="travel-frequency" name="travel_frequency" required>
+          <option value="">Select frequency</option>
+          <option value="monthly">Monthly or more</option>
+          <option value="quarterly">A few times a year</option>
+          <option value="yearly">Once a year</option>
+          <option value="rarely">Rarely (every few years)</option>
+        </select>
+
+        <label for="traveler-type">Who do you usually travel with?</label>
+        <select id="traveler-type" name="traveler_type" required>
+          <option value="">Select type</option>
+          <option value="solo">Solo</option>
+          <option value="couple">With a partner</option>
+          <option value="family">With family / children</option>
+          <option value="group">Group / business travel</option>
+        </select>
+
+        <label style="margin-top: 0.75rem;">Primary travel purpose (check all that apply)</label>
+        <div class="health-checklist">
+          <label><input type="checkbox" name="travel_purpose" value="leisure"> Leisure / tourism</label>
+          <label><input type="checkbox" name="travel_purpose" value="business"> Business</label>
+          <label><input type="checkbox" name="travel_purpose" value="family"> Family visit</label>
+          <label><input type="checkbox" name="travel_purpose" value="education"> Education / study abroad</label>
+          <label><input type="checkbox" name="travel_purpose" value="medical"> Medical / health</label>
+          <label><input type="checkbox" name="travel_purpose" value="volunteer"> Volunteering / NGO</label>
+        </div>
+
+        <label style="margin-top: 0.75rem;">Do you currently have travel insurance?</label>
+        <div style="display:flex; gap: 1.5rem; margin-top: 0.25rem;">
+          <label style="font-weight: normal;"><input type="radio" name="insurance_status" value="1" required> Yes</label>
+          <label style="font-weight: normal;"><input type="radio" name="insurance_status" value="0"> No</label>
+        </div>
       </div>
 
       <div class="card">
@@ -160,6 +258,11 @@
         health_concerns:         healthConcerns,
         health_other:            document.getElementById('health-other').value.trim() || null,
         vaccination_history:     document.getElementById('vaccination').value.trim() || null,
+        vaccination_status:      Array.from(document.querySelectorAll('input[name="vaccine"]:checked')).map(function(cb) { return cb.value; }),
+        travel_frequency:        document.getElementById('travel-frequency').value || null,
+        traveler_type:           document.getElementById('traveler-type').value || null,
+        travel_purpose:          Array.from(document.querySelectorAll('input[name="travel_purpose"]:checked')).map(function(cb) { return cb.value; }),
+        insurance_status:        document.querySelector('input[name="insurance_status"]:checked') ? parseInt(document.querySelector('input[name="insurance_status"]:checked').value) : 0,
         additional_note:         document.getElementById('additional-note').value.trim() || null,
         emergency_contact_name:  document.getElementById('emergency-name').value.trim(),
         emergency_contact_phone: document.getElementById('emergency-phone').value.trim(),

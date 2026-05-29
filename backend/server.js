@@ -51,6 +51,17 @@ db.exec('PRAGMA foreign_keys = ON');
 const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
 db.exec(schema);
 
+// Run migrations for existing databases
+[
+  'ALTER TABLE users ADD COLUMN travel_frequency   TEXT',
+  'ALTER TABLE users ADD COLUMN travel_purpose     TEXT',
+  'ALTER TABLE users ADD COLUMN traveler_type      TEXT',
+  'ALTER TABLE users ADD COLUMN insurance_status   INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE users ADD COLUMN vaccination_status TEXT',
+].forEach(function(sql) {
+  try { db.exec(sql); } catch(e) { /* column already exists */ }
+});
+
 // ─── GET /api/risk ───────────────────────────────────────────────────────────
 app.get('/api/risk', async (req, res) => {
   const { country, state, city } = req.query;
@@ -307,8 +318,9 @@ app.post('/api/users', async (req, res) => {
          height_ft, weight_lbs, blood_type, race_ethnicity,
          health_concerns, health_other, vaccination_history, additional_note,
          emergency_contact_name, emergency_contact_phone,
-         consent_signed, signature, consent_date)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         consent_signed, signature, consent_date,
+         travel_frequency, travel_purpose, traveler_type, insurance_status, vaccination_status)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       u.name, u.email, hash,
       u.dob || null, u.address || null, u.phone || null, u.citizenship || null,
@@ -318,6 +330,11 @@ app.post('/api/users', async (req, res) => {
       u.health_other || null, u.vaccination_history || null, u.additional_note || null,
       u.emergency_contact_name  || null, u.emergency_contact_phone || null,
       u.consent ? 1 : 0, u.signature || null, u.consent_date || null,
+      u.travel_frequency || null,
+      u.travel_purpose ? JSON.stringify(u.travel_purpose) : null,
+      u.traveler_type || null,
+      u.insurance_status != null ? (u.insurance_status ? 1 : 0) : 0,
+      u.vaccination_status ? JSON.stringify(u.vaccination_status) : null,
     );
     res.status(201).json({ id: result.lastInsertRowid });
   } catch (err) {
@@ -534,6 +551,8 @@ app.get('/api/admin/stats', (req, res) => {
       cdcAlerts:        db.prepare('SELECT COUNT(*) as c FROM cdc_notices').get().c,
       whoAlerts:        db.prepare('SELECT COUNT(*) as c FROM who_outbreaks').get().c,
       activeLocations:  db.prepare("SELECT COUNT(*) as c FROM user_locations WHERE updated_at > datetime('now','-24 hours')").get().c,
+      sosEvents:        db.prepare('SELECT COUNT(*) as c FROM sos_events').get().c,
+      insuredUsers:     db.prepare('SELECT COUNT(*) as c FROM users WHERE insurance_status=1').get().c,
     };
     const userGrowth = db.prepare(`SELECT DATE(created_at) as date, COUNT(*) as count FROM users WHERE created_at > datetime('now','-30 days') GROUP BY DATE(created_at) ORDER BY date`).all();
     const topDests   = db.prepare(`SELECT country_code, COUNT(*) as count FROM destinations GROUP BY country_code ORDER BY count DESC LIMIT 10`).all();
@@ -546,7 +565,50 @@ app.get('/api/admin/stats', (req, res) => {
     for (const row of hRows) {
       try { for (const c of JSON.parse(row.health_concerns)) healthCounts[c] = (healthCounts[c]||0)+1; } catch {}
     }
-    res.json({ kpis, userGrowth, topDests, transport, healthCounts, citizenships, topRisks });
+
+    // Travel frequency distribution
+    const freqRows = db.prepare(`SELECT travel_frequency, COUNT(*) as count FROM users WHERE travel_frequency IS NOT NULL GROUP BY travel_frequency ORDER BY count DESC`).all();
+
+    // Traveler type distribution
+    const travelerTypeRows = db.prepare(`SELECT traveler_type, COUNT(*) as count FROM users WHERE traveler_type IS NOT NULL GROUP BY traveler_type ORDER BY count DESC`).all();
+
+    // Insurance coverage
+    const insuredCount = db.prepare(`SELECT COUNT(*) as c FROM users WHERE insurance_status = 1`).get().c;
+
+    // Travel purpose aggregation
+    const purposeRows = db.prepare(`SELECT travel_purpose FROM users WHERE travel_purpose IS NOT NULL AND travel_purpose != '[]'`).all();
+    const purposeCounts = {};
+    for (const row of purposeRows) {
+      try { for (const p of JSON.parse(row.travel_purpose)) purposeCounts[p] = (purposeCounts[p]||0)+1; } catch {}
+    }
+
+    // Vaccination coverage aggregation
+    const vaccRows = db.prepare(`SELECT vaccination_status FROM users WHERE vaccination_status IS NOT NULL AND vaccination_status != '[]'`).all();
+    const vaccCounts = {};
+    for (const row of vaccRows) {
+      try { for (const v of JSON.parse(row.vaccination_status)) vaccCounts[v] = (vaccCounts[v]||0)+1; } catch {}
+    }
+
+    // Age distribution
+    const ageRows = db.prepare(`SELECT dob FROM users WHERE dob IS NOT NULL`).all();
+    const ageBrackets = { '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '55+': 0, 'unknown': 0 };
+    for (const row of ageRows) {
+      const age = new Date().getFullYear() - parseInt((row.dob || '').substring(0, 4));
+      if (isNaN(age)) ageBrackets['unknown']++;
+      else if (age <= 25) ageBrackets['18-25']++;
+      else if (age <= 35) ageBrackets['26-35']++;
+      else if (age <= 45) ageBrackets['36-45']++;
+      else if (age <= 55) ageBrackets['46-55']++;
+      else ageBrackets['55+']++;
+    }
+
+    // SOS events
+    const sosTotal  = db.prepare(`SELECT COUNT(*) as c FROM sos_events`).get().c;
+    const sosActive = db.prepare(`SELECT COUNT(*) as c FROM sos_events WHERE status='active'`).get().c;
+
+    res.json({ kpis, userGrowth, topDests, transport, healthCounts, citizenships, topRisks,
+               freqRows, travelerTypeRows, insuredCount, purposeCounts, vaccCounts, ageBrackets,
+               sosTotal, sosActive });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 

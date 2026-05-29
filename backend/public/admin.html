@@ -546,6 +546,16 @@
           <div class="kpi-value" id="kpiAlerts">—</div>
           <div class="kpi-sub" id="kpiAlertSub">CDC + WHO</div>
         </div>
+        <div class="kpi-card">
+          <div class="kpi-label">SOS Events</div>
+          <div class="kpi-value" id="kpiSOS">—</div>
+          <div class="kpi-sub" id="kpiSOSSub">— active</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Insured Users</div>
+          <div class="kpi-value" id="kpiInsured">—</div>
+          <div class="kpi-sub" id="kpiInsuredSub">of total</div>
+        </div>
       </div>
 
       <!-- Charts row 1 -->
@@ -569,6 +579,38 @@
         <div class="chart-card">
           <div class="chart-title">Health Concerns</div>
           <div class="chart-wrap"><canvas id="chartHealth"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Charts row 3 -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">Age Distribution</div>
+          <div class="chart-wrap"><canvas id="ageChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Travel Frequency</div>
+          <div class="chart-wrap"><canvas id="freqChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Charts row 4 -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">Traveler Type</div>
+          <div class="chart-wrap"><canvas id="travelerTypeChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Travel Purpose</div>
+          <div class="chart-wrap"><canvas id="purposeChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Charts row 5 -->
+      <div class="chart-row">
+        <div class="chart-card" style="flex: 1;">
+          <div class="chart-title">Vaccination Coverage</div>
+          <div class="chart-wrap"><canvas id="vaccChart"></canvas></div>
         </div>
       </div>
     </div>
@@ -735,10 +777,12 @@
       .then(function(data) {
         statsData = data;
         renderKPIs(data.kpis);
+        renderNewKPIs(data);
         renderGrowthChart(data.userGrowth);
         renderDestsChart(data.topDests);
         renderTransportChart(data.transport);
         renderHealthChart(data.healthCounts);
+        renderNewCharts(data);
         var now = new Date();
         document.getElementById('lastRefresh').textContent =
           'Refreshed ' + now.toLocaleTimeString();
@@ -915,6 +959,89 @@
         },
       },
     });
+  }
+
+  // ── New KPIs ───────────────────────────────────────────────────────────────
+  function renderNewKPIs(data) {
+    if (data.kpis) {
+      document.getElementById('kpiSOS').textContent     = data.kpis.sosEvents ?? '—';
+      document.getElementById('kpiSOSSub').textContent  = (data.sosActive ?? 0) + ' active';
+      document.getElementById('kpiInsured').textContent = data.insuredCount ?? data.kpis.insuredUsers ?? '—';
+      document.getElementById('kpiInsuredSub').textContent = 'of ' + (data.kpis.totalUsers ?? '—') + ' users';
+    }
+  }
+
+  // ── New Charts ─────────────────────────────────────────────────────────────
+  function renderNewCharts(data) {
+    // Age distribution chart
+    if (data.ageBrackets) {
+      new Chart(document.getElementById('ageChart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data.ageBrackets).filter(function(k) { return k !== 'unknown'; }),
+          datasets: [{ label: 'Users', backgroundColor: '#548AB8',
+            data: Object.entries(data.ageBrackets).filter(function(e) { return e[0] !== 'unknown'; }).map(function(e) { return e[1]; }) }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+    }
+
+    // Travel frequency chart
+    if (data.freqRows && data.freqRows.length) {
+      var freqLabels = { monthly: 'Monthly+', quarterly: 'Few/year', yearly: 'Yearly', rarely: 'Rarely' };
+      new Chart(document.getElementById('freqChart'), {
+        type: 'doughnut',
+        data: {
+          labels: data.freqRows.map(function(r) { return freqLabels[r.travel_frequency] || r.travel_frequency; }),
+          datasets: [{ data: data.freqRows.map(function(r) { return r.count; }),
+            backgroundColor: ['#548AB8','#6fa3cc','#3a6a95','#a8cce4'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    // Traveler type chart
+    if (data.travelerTypeRows && data.travelerTypeRows.length) {
+      var typeLabels = { solo: 'Solo', couple: 'Couple', family: 'Family', group: 'Group' };
+      new Chart(document.getElementById('travelerTypeChart'), {
+        type: 'doughnut',
+        data: {
+          labels: data.travelerTypeRows.map(function(r) { return typeLabels[r.traveler_type] || r.traveler_type; }),
+          datasets: [{ data: data.travelerTypeRows.map(function(r) { return r.count; }),
+            backgroundColor: ['#38a169','#d69e2e','#e53e3e','#6b46c1'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    // Travel purpose chart
+    if (data.purposeCounts && Object.keys(data.purposeCounts).length) {
+      var purposeLabels = { leisure: 'Leisure', business: 'Business', family: 'Family', education: 'Education', medical: 'Medical', volunteer: 'Volunteer' };
+      new Chart(document.getElementById('purposeChart'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data.purposeCounts).map(function(k) { return purposeLabels[k] || k; }),
+          datasets: [{ label: 'Users', backgroundColor: '#4a8fc4',
+            data: Object.values(data.purposeCounts) }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+    }
+
+    // Vaccination coverage chart
+    if (data.vaccCounts && Object.keys(data.vaccCounts).length) {
+      var vaccLabels = { covid19: 'COVID-19', flu: 'Flu', hepatitis_a: 'Hep A', hepatitis_b: 'Hep B', typhoid: 'Typhoid', yellow_fever: 'Yellow Fever', malaria: 'Malaria', rabies: 'Rabies', mmr: 'MMR', tetanus: 'Tetanus', meningococcal: 'Meningococcal', japanese_encephalitis: 'JE' };
+      var sortedVacc = Object.entries(data.vaccCounts).sort(function(a,b) { return b[1]-a[1]; });
+      new Chart(document.getElementById('vaccChart'), {
+        type: 'bar',
+        data: {
+          labels: sortedVacc.map(function(e) { return vaccLabels[e[0]] || e[0]; }),
+          datasets: [{ label: 'Users vaccinated', backgroundColor: '#38a169',
+            data: sortedVacc.map(function(e) { return e[1]; }) }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      });
+    }
   }
 
   // ── Users section ──────────────────────────────────────────────────────────

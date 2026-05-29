@@ -24,6 +24,11 @@ CREATE TABLE IF NOT EXISTS users (
   additional_note         TEXT,
   emergency_contact_name  TEXT,
   emergency_contact_phone TEXT,
+  travel_frequency    TEXT,                       -- monthly | quarterly | yearly | rarely
+  travel_purpose      TEXT,                       -- JSON array e.g. ["business","leisure"]
+  traveler_type       TEXT,                       -- solo | couple | family | group
+  insurance_status    INTEGER NOT NULL DEFAULT 0, -- 1 = has travel insurance
+  vaccination_status  TEXT,                       -- JSON array of structured vaccine names
   consent_signed          INTEGER NOT NULL DEFAULT 0, -- 1 = agreed
   signature               TEXT,
   consent_date            TEXT,

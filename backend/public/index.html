@@ -7,6 +7,72 @@
   <title>SafeTrax</title>
   <link rel="stylesheet" href="styles.css">
   <style>
+    /* ── Destination risk cards ──────────────────── */
+    .dest-risk-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 0.9rem 1.1rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .dest-risk-flag {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      width: 36px;
+      text-align: center;
+    }
+    .dest-risk-body { flex: 1; min-width: 0; }
+    .dest-risk-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text);
+      margin-bottom: 0.3rem;
+    }
+    .dest-risk-bar-track {
+      height: 7px;
+      border-radius: 999px;
+      background: var(--border);
+      overflow: hidden;
+      margin-bottom: 0.3rem;
+    }
+    .dest-risk-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.7s ease;
+    }
+    .dest-risk-bar-fill.low      { background: #38a169; }
+    .dest-risk-bar-fill.moderate { background: #d69e2e; }
+    .dest-risk-bar-fill.high     { background: #e53e3e; }
+    .dest-risk-bar-fill.extreme  { background: #742a2a; }
+    .dest-risk-brief {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-top: 0.25rem;
+    }
+    .dest-risk-score {
+      font-size: 1.2rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      text-align: center;
+      min-width: 42px;
+    }
+    .dest-risk-score.low      { color: #38a169; }
+    .dest-risk-score.moderate { color: #d69e2e; }
+    .dest-risk-score.high     { color: #e53e3e; }
+    .dest-risk-score.extreme  { color: #742a2a; }
+    .dest-risk-score .score-label {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      opacity: 0.8;
+    }
+
     /* ── Slim top bar ────────────────────────────── */
     .topbar {
       background: var(--primary);
@@ -331,6 +397,14 @@
       </div>
     </div>
 
+    <!-- ── Destination risk recommendations (logged-in only) ── -->
+    <div id="dest-risk-row" class="hidden">
+      <div class="section-label">Destination risk — your trips</div>
+      <div style="padding: 0 16px;" id="dest-risk-list">
+        <div style="color:var(--text-muted);font-size:0.88rem;padding:0.5rem 0;">Loading risk scores&hellip;</div>
+      </div>
+    </div>
+
     <!-- ── Global newsfeed ───────────────────────────── -->
     <div class="section-label">Global health &amp; safety news</div>
     <div id="newsfeed-list">
@@ -372,6 +446,7 @@
         if (_uid) {
           fetchNotifBadge(_uid);
           fetchUpcomingTrips(_uid);
+          fetchDestRisk(_uid);
         }
       } catch(e) {}
     }
@@ -620,6 +695,101 @@
         });
     }
 
+    // ── Destination risk recommendations ─────────────
+    var COUNTRY_FLAGS = {
+      US:'🇺🇸',GB:'🇬🇧',CA:'🇨🇦',AU:'🇦🇺',JP:'🇯🇵',FR:'🇫🇷',DE:'🇩🇪',IT:'🇮🇹',
+      ES:'🇪🇸',CN:'🇨🇳',IN:'🇮🇳',KR:'🇰🇷',TH:'🇹🇭',SG:'🇸🇬',MX:'🇲🇽',BR:'🇧🇷',
+      ZA:'🇿🇦',NG:'🇳🇬',KE:'🇰🇪',AE:'🇦🇪',TR:'🇹🇷',NZ:'🇳🇿',AR:'🇦🇷',PT:'🇵🇹',
+      NL:'🇳🇱',BE:'🇧🇪',SE:'🇸🇪',NO:'🇳🇴',DK:'🇩🇰',CH:'🇨🇭',PH:'🇵🇭',VN:'🇻🇳',
+      ID:'🇮🇩',MY:'🇲🇾',SA:'🇸🇦',IL:'🇮🇱',EG:'🇪🇬',MA:'🇲🇦',CL:'🇨🇱',CO:'🇨🇴',
+    };
+
+    function riskLabel(score) {
+      if (score == null) return 'unknown';
+      return score <= 3 ? 'low' : score <= 6 ? 'moderate' : score <= 9 ? 'high' : 'extreme';
+    }
+
+    function fetchDestRisk(userId) {
+      fetch(API_BASE + '/api/trips?user_id=' + encodeURIComponent(userId))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var activePlans = (data.plans || []).filter(function(p) { return p.status === 'active'; });
+          if (!activePlans.length) return;
+
+          // Collect unique country codes from active plans' routes
+          var seen = {};
+          var countries = [];
+          activePlans.forEach(function(p) {
+            var route = p.route || '';
+            var matches = route.match(/\(([A-Z]{2})\)/g) || [];
+            matches.forEach(function(m) {
+              var cc = m.replace(/[()]/g, '');
+              if (!seen[cc]) { seen[cc] = true; countries.push(cc); }
+            });
+          });
+          if (!countries.length) return;
+
+          document.getElementById('dest-risk-row').classList.remove('hidden');
+          var listEl = document.getElementById('dest-risk-list');
+          listEl.innerHTML = '';
+
+          // Fetch risk + brief for each country
+          countries.slice(0, 4).forEach(function(cc) {
+            var card = document.createElement('div');
+            card.className = 'dest-risk-card';
+            card.innerHTML =
+              '<div class="dest-risk-flag">' + (COUNTRY_FLAGS[cc] || '🌍') + '</div>' +
+              '<div class="dest-risk-body">' +
+                '<div class="dest-risk-name">' + cc + '</div>' +
+                '<div class="dest-risk-bar-track"><div class="dest-risk-bar-fill" id="bar-' + cc + '" style="width:0%"></div></div>' +
+                '<div class="dest-risk-brief" id="brief-' + cc + '">Loading&hellip;</div>' +
+              '</div>' +
+              '<div class="dest-risk-score" id="score-' + cc + '">—<span class="score-label">/ 10</span></div>';
+            listEl.appendChild(card);
+
+            // Fetch score
+            fetch(API_BASE + '/api/risk?country=' + cc)
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
+                var score = d.score;
+                var label = riskLabel(score);
+                var scoreEl = document.getElementById('score-' + cc);
+                var barEl   = document.getElementById('bar-' + cc);
+                if (scoreEl) { scoreEl.innerHTML = (score != null ? score : '—') + '<span class="score-label">/ 10</span>'; scoreEl.className = 'dest-risk-score ' + label; }
+                if (barEl)   { barEl.style.width = (score != null ? (score / 10 * 100) : 0) + '%'; barEl.className = 'dest-risk-bar-fill ' + label; }
+                // Also update country name from data if available
+                var nameEl = card.querySelector('.dest-risk-name');
+                if (nameEl && d.sources && d.sources.cdc_notices && d.sources.cdc_notices[0]) {
+                  // keep CC as fallback
+                }
+              }).catch(function() {});
+
+            // Fetch AI brief
+            fetch(API_BASE + '/api/risk-brief', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ country_code: cc })
+            })
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
+                var briefEl = document.getElementById('brief-' + cc);
+                if (briefEl) briefEl.textContent = d.brief || '';
+                // Also update score + bar if risk endpoint was slow
+                if (d.score != null) {
+                  var label = riskLabel(d.score);
+                  var scoreEl = document.getElementById('score-' + cc);
+                  var barEl   = document.getElementById('bar-' + cc);
+                  if (scoreEl && scoreEl.textContent === '—') { scoreEl.innerHTML = d.score + '<span class="score-label">/ 10</span>'; scoreEl.className = 'dest-risk-score ' + label; }
+                  if (barEl && barEl.style.width === '0%')   { barEl.style.width = (d.score / 10 * 100) + '%'; barEl.className = 'dest-risk-bar-fill ' + label; }
+                }
+              }).catch(function() {
+                var briefEl = document.getElementById('brief-' + cc);
+                if (briefEl) briefEl.textContent = '';
+              });
+          });
+        })
+        .catch(function() {});
+    }
+
     // ── Boot ──────────────────────────────────────────
     // Restore session: validate token with /api/me, fall back to localStorage
     (function() {
@@ -640,7 +810,7 @@
                 } catch(e) {}
                 setLoggedIn(data.name, data.citizenship || 'US');
                 fetchNotifBadge(data.id);
-                fetchUpcomingTrips(data.id);
+                fetchUpcomingTrips(data.id); fetchDestRisk(data.id);
               } else {
                 // Token invalid — fall back to legacy keys
                 var uid = localStorage.getItem('safetrax_user_id');
@@ -648,6 +818,7 @@
                   setLoggedIn(localStorage.getItem('safetrax_user_name') || 'Traveller', localStorage.getItem('safetrax_citizenship') || 'US');
                   fetchNotifBadge(uid);
                   fetchUpcomingTrips(uid);
+                  fetchDestRisk(uid);
                 }
               }
             })
@@ -657,6 +828,7 @@
                 setLoggedIn(localStorage.getItem('safetrax_user_name') || 'Traveller', localStorage.getItem('safetrax_citizenship') || 'US');
                 fetchNotifBadge(uid);
                 fetchUpcomingTrips(uid);
+                fetchDestRisk(uid);
               }
             });
         } else {
@@ -665,6 +837,7 @@
             setLoggedIn(localStorage.getItem('safetrax_user_name') || 'Traveller', localStorage.getItem('safetrax_citizenship') || 'US');
             fetchNotifBadge(uid);
             fetchUpcomingTrips(uid);
+            fetchDestRisk(uid);
           }
         }
       } catch(e) {}
