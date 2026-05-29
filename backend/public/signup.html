@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTrax – Sign up</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTrax</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Create your account</p>
+  </header>
+
+  <main class="container">
+    <form id="signup-form">
+      <div class="card">
+        <h2>Personal information</h2>
+        <label for="name">Full name</label>
+        <input type="text" id="name" name="name" placeholder="First and last name" required>
+
+        <label for="dob">Date of birth</label>
+        <input type="date" id="dob" name="dob" required>
+
+        <label for="address">Address</label>
+        <input type="text" id="address" name="address" placeholder="Street, city, state, ZIP" required>
+
+        <label for="phone">Phone number</label>
+        <input type="tel" id="phone" name="phone" placeholder="+1 (555) 000-0000" required>
+
+        <label for="signup-email">Email</label>
+        <input type="email" id="signup-email" name="email" placeholder="you@example.com" required>
+
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" name="password" placeholder="••••••••" required>
+
+        <label for="confirm-password">Confirm password</label>
+        <input type="password" id="confirm-password" name="confirm_password" placeholder="••••••••" required>
+      </div>
+
+      <div class="card">
+        <h2>Emergency contact</h2>
+        <label for="emergency-name">Emergency contact name</label>
+        <input type="text" id="emergency-name" name="emergency_name" placeholder="Full name" required>
+
+        <label for="emergency-phone">Emergency contact phone</label>
+        <input type="tel" id="emergency-phone" name="emergency_phone" placeholder="+1 (555) 000-0000" required>
+      </div>
+
+      <div class="card">
+        <h2>Citizenship & physical</h2>
+        <label for="citizenship">Citizenship</label>
+        <select id="citizenship" name="citizenship" required>
+          <option value="">Select country</option>
+          <option value="US">United States</option>
+          <option value="other">Other (specify in notes)</option>
+        </select>
+
+        <label for="height">Height (feet)</label>
+        <input type="number" id="height" name="height" placeholder="e.g. 5.8" min="3" max="8" step="0.1">
+
+        <label for="weight">Weight (lbs)</label>
+        <input type="number" id="weight" name="weight" placeholder="e.g. 150" min="50" max="500">
+
+        <label for="blood">Blood type</label>
+        <select id="blood" name="blood">
+          <option value="">Select</option>
+          <option value="A+">A+</option>
+          <option value="A-">A-</option>
+          <option value="B+">B+</option>
+          <option value="B-">B-</option>
+          <option value="AB+">AB+</option>
+          <option value="AB-">AB-</option>
+          <option value="O+">O+</option>
+          <option value="O-">O-</option>
+        </select>
+
+        <label for="race">Race / ethnicity</label>
+        <input type="text" id="race" name="race" placeholder="Optional">
+      </div>
+
+      <div class="card">
+        <h2>Health concerns</h2>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Check all that apply</p>
+        <div class="health-checklist">
+          <label><input type="checkbox" name="health" value="allergies"> Allergies</label>
+          <label><input type="checkbox" name="health" value="diabetes"> Diabetes</label>
+          <label><input type="checkbox" name="health" value="stroke"> History of stroke</label>
+          <label><input type="checkbox" name="health" value="hypertension"> High blood pressure</label>
+          <label><input type="checkbox" name="health" value="heart"> Heart condition</label>
+          <label><input type="checkbox" name="health" value="asthma"> Asthma</label>
+          <label><input type="checkbox" name="health" value="epilepsy"> Epilepsy</label>
+          <label><input type="checkbox" name="health" value="kidney"> Kidney disease</label>
+          <label><input type="checkbox" name="health" value="immune"> Weakened immune system</label>
+          <label><input type="checkbox" name="health" value="pregnancy"> Pregnancy</label>
+        </div>
+        <label for="health-other" class="mt-2">Other health concerns</label>
+        <textarea id="health-other" name="health_other" rows="2" placeholder="Describe any other conditions"></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Vaccination history</h2>
+        <label for="vaccination">Vaccination history</label>
+        <textarea id="vaccination" name="vaccination" rows="3" placeholder="List recent vaccines (e.g. COVID-19, flu, yellow fever) and dates"></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Additional note</h2>
+        <textarea id="additional-note" name="additional_note" rows="3" placeholder="Any other information for travel safety"></textarea>
+      </div>
+
+      <div class="card consent-box">
+        <h2>Consent & digital signature</h2>
+        <p style="font-size: 0.9rem; margin-bottom: 0.75rem;">
+          I understand that SafeTrax is a health and travel advisory app. I consent to the analysis of my health and travel data to receive context-aware travel risk and advisory through the SafeTrax Hub. I have read and agree to the terms.
+        </p>
+        <label for="consent-check">I agree and consent</label>
+        <input type="checkbox" id="consent-check" name="consent" required style="width: auto; margin-bottom: 0.5rem;">
+        <label for="signature">Digital signature (type your full name)</label>
+        <input type="text" id="signature" name="signature" placeholder="Full legal name" required>
+        <div class="signature-line">Date: <span id="sign-date"></span></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Create account</button>
+      <div id="signup-error" style="color:var(--danger);font-size:0.9rem;margin-top:0.5rem;display:none;"></div>
+      <p class="text-center mt-2" style="font-size: 0.9rem;">
+        <a href="index.html">Already have an account? Log in</a>
+      </p>
+    </form>
+  </main>
+
+  <script>
+    var API_BASE = '';
+    document.getElementById('sign-date').textContent = new Date().toLocaleDateString();
+
+    document.getElementById('signup-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var p1 = document.getElementById('signup-password').value;
+      var p2 = document.getElementById('confirm-password').value;
+      if (p1 !== p2) { showError('Passwords do not match.'); return; }
+
+      var healthConcerns = [];
+      document.querySelectorAll('input[name="health"]:checked').forEach(function(cb) {
+        healthConcerns.push(cb.value);
+      });
+
+      var payload = {
+        name:                    document.getElementById('name').value.trim(),
+        email:                   document.getElementById('signup-email').value.trim(),
+        password:                p1,
+        dob:                     document.getElementById('dob').value,
+        address:                 document.getElementById('address').value.trim(),
+        phone:                   document.getElementById('phone').value.trim(),
+        citizenship:             document.getElementById('citizenship').value,
+        height_ft:               parseFloat(document.getElementById('height').value) || null,
+        weight_lbs:              parseFloat(document.getElementById('weight').value) || null,
+        blood_type:              document.getElementById('blood').value || null,
+        race_ethnicity:          document.getElementById('race').value.trim() || null,
+        health_concerns:         healthConcerns,
+        health_other:            document.getElementById('health-other').value.trim() || null,
+        vaccination_history:     document.getElementById('vaccination').value.trim() || null,
+        additional_note:         document.getElementById('additional-note').value.trim() || null,
+        emergency_contact_name:  document.getElementById('emergency-name').value.trim(),
+        emergency_contact_phone: document.getElementById('emergency-phone').value.trim(),
+        consent:                 document.getElementById('consent-check').checked,
+        signature:               document.getElementById('signature').value.trim(),
+        consent_date:            new Date().toISOString().split('T')[0],
+      };
+
+      var btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Creating account…';
+
+      fetch(API_BASE + '/api/users', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload)
+      })
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+      .then(function(res) {
+        if (!res.ok) { showError(res.data.error || 'Registration failed.'); btn.disabled = false; btn.textContent = 'Create account'; return; }
+        // Auto-login after registration
+        return fetch(API_BASE + '/api/login', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ email: payload.email, password: payload.password })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.id) {
+            try {
+              localStorage.setItem('safetrax_user_id',     d.id);
+              localStorage.setItem('safetrax_user_name',   d.name);
+              localStorage.setItem('safetrax_email',       d.email);
+              localStorage.setItem('safetrax_citizenship', d.citizenship || payload.citizenship || '');
+              if (d.token) localStorage.setItem('safetrax_token', d.token);
+              localStorage.setItem('safetrax_user', JSON.stringify({ id: d.id, name: d.name, email: d.email }));
+            } catch(err) {}
+          }
+          window.location.href = 'index.html';
+        });
+      })
+      .catch(function(err) {
+        showError('Could not reach the server (' + err.message + '). Is the backend running?');
+        btn.disabled = false;
+        btn.textContent = 'Create account';
+      });
+    });
+
+    function showError(msg) {
+      var el = document.getElementById('signup-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

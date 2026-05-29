@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTrax – Travel plan</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .city-other-input { margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTrax</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Travel plan</p>
+  </header>
+
+  <main class="container">
+    <form id="travel-form" action="recommendation.html" method="get">
+      <div class="card">
+        <h2>Destination</h2>
+        <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.75rem;">
+          Select country → state (US only) → city. Choose "Other" to type a city not listed.
+        </p>
+        <div id="destinations">
+          <!-- First destination row built by JS -->
+        </div>
+        <button type="button" class="btn btn-outline mt-1" id="add-destination">+ Add another destination</button>
+      </div>
+
+      <div class="card">
+        <h2>Dates</h2>
+        <label for="date-start">Start date</label>
+        <input type="date" id="date-start" name="date_start" required>
+        <label for="date-end">End date</label>
+        <input type="date" id="date-end" name="date_end" required>
+      </div>
+
+      <div class="card">
+        <h2>Primary transportation</h2>
+        <select id="transport" name="transport" required>
+          <option value="">Select</option>
+          <option value="air">Air</option>
+          <option value="car">Car</option>
+          <option value="train">Train</option>
+          <option value="bus">Bus</option>
+          <option value="cruise">Cruise</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <h2>Checklist before you go</h2>
+        <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.75rem;">Immigration, health, law &amp; weather</p>
+        <div class="checklist-group">
+          <h4>Immigration</h4>
+          <div class="check-item"><input type="checkbox" name="check_immigration_visa" id="c1"><label for="c1">Visa / ESTA / entry requirements</label></div>
+          <div class="check-item"><input type="checkbox" name="check_immigration_passport" id="c2"><label for="c2">Passport validity (6+ months)</label></div>
+        </div>
+        <div class="checklist-group">
+          <h4>Health</h4>
+          <div class="check-item"><input type="checkbox" name="check_health_vaccine" id="c3"><label for="c3">Vaccinations up to date</label></div>
+          <div class="check-item"><input type="checkbox" name="check_health_insurance" id="c4"><label for="c4">Travel health insurance</label></div>
+          <div class="check-item"><input type="checkbox" name="check_health_meds" id="c5"><label for="c5">Medications &amp; prescriptions</label></div>
+        </div>
+        <div class="checklist-group">
+          <h4>Law &amp; regulations</h4>
+          <div class="check-item"><input type="checkbox" name="check_law" id="c6"><label for="c6">Local laws and customs</label></div>
+        </div>
+        <div class="checklist-group">
+          <h4>Weather</h4>
+          <div class="check-item"><input type="checkbox" name="check_weather" id="c7"><label for="c7">Forecast and seasonal risks</label></div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Generate recommendation</button>
+    </form>
+  </main>
+
+  <nav class="nav-bottom">
+    <a href="index.html"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html" class="active"><span class="icon-label">Travel plan</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="faq.html"><span class="icon-label">Help</span></a>
+    <a href="profile.html"><span class="icon-label">Profile</span></a>
+  </nav>
+
+  <script>
+  // ─── Data ────────────────────────────────────────────────────────────────────
+
+  var COUNTRIES = [
+    {c:'AF',n:'Afghanistan'},{c:'AL',n:'Albania'},{c:'DZ',n:'Algeria'},{c:'AD',n:'Andorra'},
+    {c:'AO',n:'Angola'},{c:'AG',n:'Antigua and Barbuda'},{c:'AR',n:'Argentina'},
+    {c:'AM',n:'Armenia'},{c:'AU',n:'Australia'},{c:'AT',n:'Austria'},{c:'AZ',n:'Azerbaijan'},
+    {c:'BS',n:'Bahamas'},{c:'BH',n:'Bahrain'},{c:'BD',n:'Bangladesh'},{c:'BB',n:'Barbados'},
+    {c:'BY',n:'Belarus'},{c:'BE',n:'Belgium'},{c:'BZ',n:'Belize'},{c:'BJ',n:'Benin'},
+    {c:'BT',n:'Bhutan'},{c:'BO',n:'Bolivia'},{c:'BA',n:'Bosnia and Herzegovina'},
+    {c:'BW',n:'Botswana'},{c:'BR',n:'Brazil'},{c:'BN',n:'Brunei'},{c:'BG',n:'Bulgaria'},
+    {c:'BF',n:'Burkina Faso'},{c:'BI',n:'Burundi'},{c:'CV',n:'Cabo Verde'},
+    {c:'KH',n:'Cambodia'},{c:'CM',n:'Cameroon'},{c:'CA',n:'Canada'},
+    {c:'CF',n:'Central African Republic'},{c:'TD',n:'Chad'},{c:'CL',n:'Chile'},
+    {c:'CN',n:'China'},{c:'CO',n:'Colombia'},{c:'KM',n:'Comoros'},{c:'CG',n:'Congo'},
+    {c:'CR',n:'Costa Rica'},{c:'HR',n:'Croatia'},{c:'CU',n:'Cuba'},{c:'CY',n:'Cyprus'},
+    {c:'CZ',n:'Czechia'},{c:'CD',n:'Dem. Rep. Congo'},{c:'DK',n:'Denmark'},
+    {c:'DJ',n:'Djibouti'},{c:'DM',n:'Dominica'},{c:'DO',n:'Dominican Republic'},
+    {c:'EC',n:'Ecuador'},{c:'EG',n:'Egypt'},{c:'SV',n:'El Salvador'},
+    {c:'GQ',n:'Equatorial Guinea'},{c:'ER',n:'Eritrea'},{c:'EE',n:'Estonia'},
+    {c:'SZ',n:'Eswatini'},{c:'ET',n:'Ethiopia'},{c:'FJ',n:'Fiji'},{c:'FI',n:'Finland'},
+    {c:'FR',n:'France'},{c:'GA',n:'Gabon'},{c:'GM',n:'Gambia'},{c:'GE',n:'Georgia'},
+    {c:'DE',n:'Germany'},{c:'GH',n:'Ghana'},{c:'GR',n:'Greece'},{c:'GD',n:'Grenada'},
+    {c:'GT',n:'Guatemala'},{c:'GN',n:'Guinea'},{c:'GW',n:'Guinea-Bissau'},
+    {c:'GY',n:'Guyana'},{c:'HT',n:'Haiti'},{c:'HN',n:'Honduras'},{c:'HU',n:'Hungary'},
+    {c:'IS',n:'Iceland'},{c:'IN',n:'India'},{c:'ID',n:'Indonesia'},{c:'IR',n:'Iran'},
+    {c:'IQ',n:'Iraq'},{c:'IE',n:'Ireland'},{c:'IL',n:'Israel'},{c:'IT',n:'Italy'},
+    {c:'JM',n:'Jamaica'},{c:'JP',n:'Japan'},{c:'JO',n:'Jordan'},{c:'KZ',n:'Kazakhstan'},
+    {c:'KE',n:'Kenya'},{c:'KI',n:'Kiribati'},{c:'KW',n:'Kuwait'},{c:'KG',n:'Kyrgyzstan'},
+    {c:'LA',n:'Laos'},{c:'LV',n:'Latvia'},{c:'LB',n:'Lebanon'},{c:'LS',n:'Lesotho'},
+    {c:'LR',n:'Liberia'},{c:'LY',n:'Libya'},{c:'LI',n:'Liechtenstein'},{c:'LT',n:'Lithuania'},
+    {c:'LU',n:'Luxembourg'},{c:'MG',n:'Madagascar'},{c:'MW',n:'Malawi'},
+    {c:'MY',n:'Malaysia'},{c:'MV',n:'Maldives'},{c:'ML',n:'Mali'},{c:'MT',n:'Malta'},
+    {c:'MH',n:'Marshall Islands'},{c:'MR',n:'Mauritania'},{c:'MU',n:'Mauritius'},
+    {c:'MX',n:'Mexico'},{c:'FM',n:'Micronesia'},{c:'MD',n:'Moldova'},{c:'MC',n:'Monaco'},
+    {c:'MN',n:'Mongolia'},{c:'ME',n:'Montenegro'},{c:'MA',n:'Morocco'},
+    {c:'MZ',n:'Mozambique'},{c:'MM',n:'Myanmar'},{c:'NA',n:'Namibia'},{c:'NR',n:'Nauru'},
+    {c:'NP',n:'Nepal'},{c:'NL',n:'Netherlands'},{c:'NZ',n:'New Zealand'},
+    {c:'NI',n:'Nicaragua'},{c:'NE',n:'Niger'},{c:'NG',n:'Nigeria'},{c:'KP',n:'North Korea'},
+    {c:'MK',n:'North Macedonia'},{c:'NO',n:'Norway'},{c:'OM',n:'Oman'},
+    {c:'PK',n:'Pakistan'},{c:'PW',n:'Palau'},{c:'PS',n:'Palestine'},{c:'PA',n:'Panama'},
+    {c:'PG',n:'Papua New Guinea'},{c:'PY',n:'Paraguay'},{c:'PE',n:'Peru'},
+    {c:'PH',n:'Philippines'},{c:'PL',n:'Poland'},{c:'PT',n:'Portugal'},{c:'QA',n:'Qatar'},
+    {c:'RO',n:'Romania'},{c:'RU',n:'Russia'},{c:'RW',n:'Rwanda'},
+    {c:'KN',n:'Saint Kitts and Nevis'},{c:'LC',n:'Saint Lucia'},
+    {c:'VC',n:'Saint Vincent and the Grenadines'},{c:'WS',n:'Samoa'},
+    {c:'SM',n:'San Marino'},{c:'ST',n:'Sao Tome and Principe'},{c:'SA',n:'Saudi Arabia'},
+    {c:'SN',n:'Senegal'},{c:'RS',n:'Serbia'},{c:'SC',n:'Seychelles'},
+    {c:'SL',n:'Sierra Leone'},{c:'SG',n:'Singapore'},{c:'SK',n:'Slovakia'},
+    {c:'SI',n:'Slovenia'},{c:'SB',n:'Solomon Islands'},{c:'SO',n:'Somalia'},
+    {c:'ZA',n:'South Africa'},{c:'KR',n:'South Korea'},{c:'SS',n:'South Sudan'},
+    {c:'ES',n:'Spain'},{c:'LK',n:'Sri Lanka'},{c:'SD',n:'Sudan'},{c:'SR',n:'Suriname'},
+    {c:'SE',n:'Sweden'},{c:'CH',n:'Switzerland'},{c:'SY',n:'Syria'},{c:'TW',n:'Taiwan'},
+    {c:'TJ',n:'Tajikistan'},{c:'TZ',n:'Tanzania'},{c:'TH',n:'Thailand'},
+    {c:'TL',n:'Timor-Leste'},{c:'TG',n:'Togo'},{c:'TO',n:'Tonga'},
+    {c:'TT',n:'Trinidad and Tobago'},{c:'TN',n:'Tunisia'},{c:'TR',n:'Turkey'},
+    {c:'TM',n:'Turkmenistan'},{c:'TV',n:'Tuvalu'},{c:'UG',n:'Uganda'},
+    {c:'UA',n:'Ukraine'},{c:'AE',n:'United Arab Emirates'},{c:'GB',n:'United Kingdom'},
+    {c:'US',n:'United States'},{c:'UY',n:'Uruguay'},{c:'UZ',n:'Uzbekistan'},
+    {c:'VU',n:'Vanuatu'},{c:'VA',n:'Vatican City'},{c:'VE',n:'Venezuela'},
+    {c:'VN',n:'Vietnam'},{c:'YE',n:'Yemen'},{c:'ZM',n:'Zambia'},{c:'ZW',n:'Zimbabwe'},
+    {c:'OTHER',n:'Other / not listed'}
+  ];
+
+  // Major cities per country code. US cities are keyed by state code under US.
+  var CITIES = {
+    // ── United States (by state) ──────────────────────────────────────────
+    US: {
+      AL:['Birmingham','Montgomery','Huntsville','Mobile','Tuscaloosa'],
+      AK:['Anchorage','Fairbanks','Juneau','Sitka','Ketchikan'],
+      AZ:['Phoenix','Tucson','Scottsdale','Tempe','Mesa','Chandler','Flagstaff','Sedona'],
+      AR:['Little Rock','Fort Smith','Fayetteville','Springdale','Jonesboro'],
+      CA:['Los Angeles','San Francisco','San Diego','Sacramento','San Jose','Oakland','Fresno','Long Beach','Anaheim','Santa Barbara','Palm Springs','Monterey','Lake Tahoe'],
+      CO:['Denver','Colorado Springs','Boulder','Aurora','Fort Collins','Aspen','Vail','Telluride'],
+      CT:['Hartford','New Haven','Stamford','Bridgeport','Greenwich'],
+      DE:['Wilmington','Dover','Newark'],
+      FL:['Miami','Orlando','Tampa','Jacksonville','Fort Lauderdale','Key West','Naples','Sarasota','St. Petersburg','Pensacola','Gainesville','Tallahassee'],
+      GA:['Atlanta','Savannah','Augusta','Columbus','Macon','Athens'],
+      HI:['Honolulu','Hilo','Kailua','Lahaina','Lihue'],
+      ID:['Boise','Idaho Falls','Nampa','Coeur d\'Alene','Twin Falls'],
+      IL:['Chicago','Springfield','Rockford','Peoria','Champaign','Naperville'],
+      IN:['Indianapolis','Fort Wayne','Evansville','South Bend','Bloomington'],
+      IA:['Des Moines','Cedar Rapids','Davenport','Iowa City','Sioux City'],
+      KS:['Wichita','Overland Park','Kansas City','Topeka','Lawrence'],
+      KY:['Louisville','Lexington','Bowling Green','Owensboro','Covington'],
+      LA:['New Orleans','Baton Rouge','Shreveport','Lafayette','Lake Charles'],
+      ME:['Portland','Augusta','Bangor','Bar Harbor','Kennebunkport'],
+      MD:['Baltimore','Annapolis','Frederick','Rockville','Bethesda'],
+      MA:['Boston','Cambridge','Worcester','Springfield','Lowell','Salem','Cape Cod'],
+      MI:['Detroit','Grand Rapids','Ann Arbor','Lansing','Flint','Traverse City','Mackinac Island'],
+      MN:['Minneapolis','Saint Paul','Duluth','Rochester','Bloomington'],
+      MS:['Jackson','Gulfport','Biloxi','Hattiesburg','Tupelo'],
+      MO:['Kansas City','Saint Louis','Springfield','Columbia','Independence'],
+      MT:['Billings','Missoula','Great Falls','Bozeman','Helena'],
+      NE:['Omaha','Lincoln','Bellevue','Grand Island','Kearney'],
+      NV:['Las Vegas','Reno','Henderson','Carson City','Sparks'],
+      NH:['Manchester','Concord','Nashua','Portsmouth','Keene'],
+      NJ:['Newark','Jersey City','Trenton','Paterson','Atlantic City','Hoboken','Princeton'],
+      NM:['Albuquerque','Santa Fe','Las Cruces','Roswell','Taos'],
+      NY:['New York City','Buffalo','Rochester','Albany','Syracuse','Niagara Falls','Ithaca','Saratoga Springs'],
+      NC:['Charlotte','Raleigh','Greensboro','Durham','Winston-Salem','Asheville','Chapel Hill','Wilmington'],
+      ND:['Fargo','Bismarck','Grand Forks','Minot'],
+      OH:['Columbus','Cleveland','Cincinnati','Toledo','Akron','Dayton'],
+      OK:['Oklahoma City','Tulsa','Norman','Broken Arrow','Edmond'],
+      OR:['Portland','Eugene','Salem','Bend','Medford','Ashland'],
+      PA:['Philadelphia','Pittsburgh','Allentown','Erie','Reading','Lancaster','Gettysburg'],
+      RI:['Providence','Cranston','Warwick','Newport','Pawtucket'],
+      SC:['Columbia','Charleston','Greenville','Myrtle Beach','Hilton Head Island'],
+      SD:['Sioux Falls','Rapid City','Aberdeen','Brookings'],
+      TN:['Nashville','Memphis','Knoxville','Chattanooga','Clarksville'],
+      TX:['Houston','San Antonio','Dallas','Austin','Fort Worth','El Paso','Arlington','Corpus Christi','Galveston','San Marcos'],
+      UT:['Salt Lake City','Provo','Ogden','St. George','Park City','Moab'],
+      VT:['Burlington','Montpelier','Brattleboro','Stowe','Woodstock'],
+      VA:['Virginia Beach','Norfolk','Arlington','Richmond','Alexandria','Charlottesville','Williamsburg'],
+      WA:['Seattle','Spokane','Tacoma','Bellevue','Olympia','Bellingham'],
+      WV:['Charleston','Huntington','Morgantown','Parkersburg'],
+      WI:['Milwaukee','Madison','Green Bay','Kenosha','Racine'],
+      WY:['Cheyenne','Casper','Laramie','Jackson','Cody']
+    },
+    // ── Rest of the world ─────────────────────────────────────────────────
+    AF:['Kabul','Kandahar','Herat','Mazar-i-Sharif','Jalalabad'],
+    AL:['Tirana','Durrës','Vlorë','Shkodër','Gjirokastër'],
+    DZ:['Algiers','Oran','Constantine','Annaba','Blida'],
+    AO:['Luanda','Huambo','Lobito','Benguela','Lubango'],
+    AR:['Buenos Aires','Córdoba','Rosario','Mendoza','Tucumán','Bariloche','Mar del Plata','Salta'],
+    AM:['Yerevan','Gyumri','Vanadzor'],
+    AU:['Sydney','Melbourne','Brisbane','Perth','Adelaide','Cairns','Darwin','Hobart','Canberra','Gold Coast'],
+    AT:['Vienna','Graz','Linz','Salzburg','Innsbruck'],
+    AZ:['Baku','Ganja','Sumqayit','Mingachevir'],
+    BS:['Nassau','Freeport','Marsh Harbour'],
+    BH:['Manama','Muharraq','Riffa'],
+    BD:['Dhaka','Chittagong','Khulna','Rajshahi','Sylhet'],
+    BB:['Bridgetown','Speightstown'],
+    BY:['Minsk','Gomel','Mogilev','Vitebsk','Grodno'],
+    BE:['Brussels','Antwerp','Ghent','Bruges','Liège','Leuven'],
+    BZ:['Belize City','Belmopan','San Ignacio'],
+    BO:['La Paz','Santa Cruz de la Sierra','Cochabamba','Sucre','Oruro','Potosí'],
+    BA:['Sarajevo','Banja Luka','Mostar','Tuzla'],
+    BW:['Gaborone','Francistown','Maun'],
+    BR:['São Paulo','Rio de Janeiro','Brasília','Salvador','Fortaleza','Manaus','Recife','Curitiba','Porto Alegre','Belém','Florianópolis','Natal','Foz do Iguaçu'],
+    BN:['Bandar Seri Begawan','Kuala Belait','Seria'],
+    BG:['Sofia','Plovdiv','Varna','Burgas','Ruse'],
+    KH:['Phnom Penh','Siem Reap','Sihanoukville','Battambang'],
+    CM:['Yaoundé','Douala','Bamenda','Garoua'],
+    CA:['Toronto','Vancouver','Montreal','Calgary','Ottawa','Edmonton','Quebec City','Winnipeg','Hamilton','Victoria','Halifax'],
+    CL:['Santiago','Valparaíso','Concepción','La Serena','Iquique','Puerto Montt','Punta Arenas','Atacama'],
+    CN:['Beijing','Shanghai','Shenzhen','Guangzhou','Chengdu','Chongqing','Hangzhou','Wuhan','Xi\'an','Nanjing','Kunming','Guilin','Lhasa','Hong Kong','Macau'],
+    CO:['Bogotá','Medellín','Cali','Barranquilla','Cartagena','Santa Marta','Cúcuta','Pereira'],
+    CR:['San José','Liberia','Jacó','Tamarindo','Manuel Antonio','Puerto Viejo','La Fortuna'],
+    HR:['Zagreb','Split','Dubrovnik','Rijeka','Zadar','Hvar','Rovinj'],
+    CU:['Havana','Santiago de Cuba','Camagüey','Holguín','Trinidad','Varadero'],
+    CY:['Nicosia','Limassol','Larnaca','Paphos','Ayia Napa'],
+    CZ:['Prague','Brno','Ostrava','Plzeň','Liberec','Český Krumlov','Karlovy Vary'],
+    DK:['Copenhagen','Aarhus','Odense','Aalborg','Esbjerg'],
+    DO:['Santo Domingo','Santiago','Punta Cana','Puerto Plata','La Romana'],
+    EC:['Quito','Guayaquil','Cuenca','Manta','Loja','Galápagos'],
+    EG:['Cairo','Alexandria','Giza','Luxor','Aswan','Sharm el-Sheikh','Hurghada','Dahab'],
+    ET:['Addis Ababa','Dire Dawa','Mekele','Gondar','Hawassa'],
+    FI:['Helsinki','Espoo','Tampere','Vantaa','Oulu','Turku','Rovaniemi'],
+    FR:['Paris','Marseille','Lyon','Toulouse','Nice','Nantes','Strasbourg','Bordeaux','Lille','Cannes','Monaco','Mont-Saint-Michel','Chamonix'],
+    DE:['Berlin','Munich','Hamburg','Frankfurt','Cologne','Stuttgart','Dresden','Düsseldorf','Leipzig','Nuremberg','Heidelberg'],
+    GH:['Accra','Kumasi','Tamale','Cape Coast'],
+    GR:['Athens','Thessaloniki','Heraklion','Rhodes','Santorini','Mykonos','Corfu','Patras'],
+    GT:['Guatemala City','Antigua','Quetzaltenango','Flores','Panajachel'],
+    HT:['Port-au-Prince','Cap-Haïtien','Les Cayes'],
+    HN:['Tegucigalpa','San Pedro Sula','Roatán','Copán'],
+    HU:['Budapest','Debrecen','Miskolc','Pécs','Győr','Eger','Pécs'],
+    IS:['Reykjavik','Akureyri','Vik','Selfoss'],
+    IN:['New Delhi','Mumbai','Bangalore','Hyderabad','Chennai','Kolkata','Jaipur','Ahmedabad','Pune','Surat','Agra','Varanasi','Goa','Amritsar','Kochi','Shimla','Manali','Leh'],
+    ID:['Jakarta','Surabaya','Bandung','Bali (Denpasar)','Medan','Semarang','Yogyakarta','Lombok','Komodo','Raja Ampat'],
+    IR:['Tehran','Isfahan','Shiraz','Mashhad','Tabriz','Yazd','Kashan'],
+    IQ:['Baghdad','Basra','Mosul','Erbil','Najaf'],
+    IE:['Dublin','Cork','Galway','Limerick','Waterford','Killarney'],
+    IL:['Jerusalem','Tel Aviv','Haifa','Eilat','Nazareth','Tiberias','Dead Sea'],
+    IT:['Rome','Milan','Venice','Florence','Naples','Turin','Bologna','Palermo','Amalfi','Cinque Terre','Capri','Positano','Sorrento','Pisa','Verona','Siena'],
+    JM:['Kingston','Montego Bay','Negril','Ocho Rios','Port Antonio'],
+    JP:['Tokyo','Osaka','Kyoto','Hiroshima','Nara','Sapporo','Fukuoka','Nagoya','Hakone','Nikko','Okinawa','Yokohama'],
+    JO:['Amman','Petra','Aqaba','Wadi Rum','Jerash','Madaba'],
+    KZ:['Almaty','Astana (Nur-Sultan)','Shymkent'],
+    KE:['Nairobi','Mombasa','Kisumu','Nakuru','Malindi','Diani Beach'],
+    KW:['Kuwait City','Hawalli','Salmiya'],
+    LA:['Vientiane','Luang Prabang','Vang Vieng','Pakse'],
+    LV:['Riga','Daugavpils','Liepāja'],
+    LB:['Beirut','Tripoli','Sidon','Baalbek','Byblos'],
+    LT:['Vilnius','Kaunas','Klaipėda','Šiauliai','Panevėžys'],
+    LU:['Luxembourg City','Esch-sur-Alzette','Differdange'],
+    MY:['Kuala Lumpur','Penang','Kota Kinabalu','Malacca','Johor Bahru','Langkawi','Cameron Highlands'],
+    MV:['Malé','Addu City','Maafushi'],
+    ML:['Bamako','Timbuktu','Mopti'],
+    MT:['Valletta','Mdina','Sliema','St Julian\'s','Gozo'],
+    MX:['Mexico City','Cancún','Guadalajara','Monterrey','Oaxaca','Playa del Carmen','Tulum','San Miguel de Allende','Puerto Vallarta','Los Cabos','Mérida','Puebla','Guanajuato'],
+    MA:['Casablanca','Marrakech','Fez','Rabat','Tangier','Agadir','Chefchaouen','Essaouira'],
+    MZ:['Maputo','Beira','Nampula','Inhambane'],
+    MM:['Yangon','Naypyidaw','Mandalay','Bagan','Inle Lake'],
+    NA:['Windhoek','Swakopmund','Walvis Bay','Lüderitz'],
+    NP:['Kathmandu','Pokhara','Chitwan','Lumbini','Namche Bazaar'],
+    NL:['Amsterdam','Rotterdam','The Hague','Utrecht','Eindhoven','Maastricht'],
+    NZ:['Auckland','Wellington','Christchurch','Queenstown','Dunedin','Rotorua','Taupo','Nelson'],
+    NG:['Lagos','Abuja','Kano','Ibadan','Port Harcourt'],
+    NO:['Oslo','Bergen','Trondheim','Stavanger','Tromsø','Ålesund','Geiranger'],
+    OM:['Muscat','Salalah','Sohar','Nizwa','Sur'],
+    PK:['Karachi','Lahore','Islamabad','Rawalpindi','Faisalabad','Multan','Peshawar','Quetta','Hunza'],
+    PS:['East Jerusalem','Ramallah','Bethlehem','Nablus','Hebron'],
+    PA:['Panama City','Colón','David','Bocas del Toro','Boquete'],
+    PY:['Asunción','Ciudad del Este','Encarnación'],
+    PE:['Lima','Cusco','Arequipa','Puno','Trujillo','Machu Picchu','Iquitos','Nazca'],
+    PH:['Manila','Cebu City','Davao','Boracay','Palawan (Puerto Princesa)','Bohol','Siargao','Vigan','Baguio'],
+    PL:['Warsaw','Kraków','Gdańsk','Wrocław','Poznań','Łódź','Zakopane'],
+    PT:['Lisbon','Porto','Faro','Algarve','Sintra','Óbidos','Évora','Madeira','Azores'],
+    QA:['Doha','Al Wakrah','Al Khor'],
+    RO:['Bucharest','Cluj-Napoca','Timișoara','Iași','Brașov','Sibiu','Sinaia'],
+    RU:['Moscow','Saint Petersburg','Novosibirsk','Ekaterinburg','Sochi','Kazan','Vladivostok','Irkutsk','Baikal'],
+    SA:['Riyadh','Jeddah','Mecca','Medina','Dammam','Abha','AlUla'],
+    SN:['Dakar','Thiès','Saint-Louis','Ziguinchor'],
+    RS:['Belgrade','Novi Sad','Niš','Kragujevac','Subotica'],
+    SG:['Singapore'],
+    ZA:['Johannesburg','Cape Town','Durban','Pretoria','Port Elizabeth','Kruger','Stellenbosch','Knysna'],
+    KR:['Seoul','Busan','Incheon','Daegu','Gyeongju','Jeju','Jeonju'],
+    ES:['Madrid','Barcelona','Seville','Valencia','Granada','Bilbao','Málaga','Córdoba','Toledo','Palma de Mallorca','Ibiza','San Sebastián'],
+    LK:['Colombo','Kandy','Galle','Nuwara Eliya','Sigiriya','Jaffna'],
+    SD:['Khartoum','Omdurman','Port Sudan','Kassala'],
+    SE:['Stockholm','Gothenburg','Malmö','Uppsala','Kiruna','Visby'],
+    CH:['Zurich','Geneva','Basel','Bern','Lausanne','Lucerne','Interlaken','Zermatt','St. Moritz'],
+    SY:['Damascus','Aleppo','Homs','Latakia'],
+    TW:['Taipei','Kaohsiung','Taichung','Tainan','Hualien','Taroko'],
+    TZ:['Dar es Salaam','Zanzibar','Arusha','Kilimanjaro','Serengeti','Mwanza'],
+    TH:['Bangkok','Chiang Mai','Phuket','Pattaya','Koh Samui','Chiang Rai','Ayutthaya','Hua Hin','Krabi','Koh Phi Phi'],
+    TN:['Tunis','Sfax','Sousse','Hammamet','Djerba','Kairouan'],
+    TR:['Istanbul','Ankara','Izmir','Cappadocia (Göreme)','Antalya','Bodrum','Ephesus','Trabzon','Pamukkale','Gaziantep'],
+    UA:['Kyiv','Kharkiv','Odessa','Lviv','Dnipro','Zaporizhzhia'],
+    AE:['Dubai','Abu Dhabi','Sharjah','Ajman','Ras Al Khaimah'],
+    GB:['London','Edinburgh','Manchester','Birmingham','Glasgow','Liverpool','Bristol','Leeds','Oxford','Cambridge','Bath','York','Brighton','Cardiff','Belfast'],
+    UY:['Montevideo','Punta del Este','Colonia del Sacramento'],
+    UZ:['Tashkent','Samarkand','Bukhara','Khiva','Ferghana'],
+    VN:['Hanoi','Ho Chi Minh City','Da Nang','Hoi An','Hue','Nha Trang','Ha Long Bay','Sapa','Phu Quoc'],
+    YE:['Sana\'a','Aden','Taiz','Mukalla'],
+    ZM:['Lusaka','Livingstone','Ndola','Kitwe'],
+    ZW:['Harare','Bulawayo','Victoria Falls']
+  };
+
+  var US_STATES = [
+    ['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],
+    ['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],
+    ['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],
+    ['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],
+    ['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],
+    ['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],
+    ['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],
+    ['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],
+    ['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],
+    ['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],
+    ['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],
+    ['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],
+    ['WI','Wisconsin'],['WY','Wyoming'],['OTHER','Other']
+  ];
+
+  // ─── Build option strings ────────────────────────────────────────────────────
+
+  var countryOptionsHtml = '<option value="">Select country</option>' +
+    COUNTRIES.map(function(x) {
+      return '<option value="' + x.c + '">' + x.n + '</option>';
+    }).join('');
+
+  var stateOptionsHtml = '<option value="">Select state</option>' +
+    US_STATES.map(function(s) {
+      return '<option value="' + s[0] + '">' + s[1] + '</option>';
+    }).join('');
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  function getCities(countryCode, stateCode) {
+    if (!countryCode || countryCode === 'OTHER') return [];
+    if (countryCode === 'US') {
+      if (!stateCode || stateCode === 'OTHER') return [];
+      return (CITIES.US && CITIES.US[stateCode]) || [];
+    }
+    return CITIES[countryCode] || [];
+  }
+
+  function populateCitySelect(select, cities) {
+    select.innerHTML = '<option value="">Select city</option>';
+    cities.forEach(function(city) {
+      var o = document.createElement('option');
+      o.value = city;
+      o.textContent = city;
+      select.appendChild(o);
+    });
+    var other = document.createElement('option');
+    other.value = '__other__';
+    other.textContent = 'Other — type your city';
+    select.appendChild(other);
+  }
+
+  function handleCitySelectChange(row) {
+    var citySelect = row.querySelector('.city-select');
+    var cityOtherWrap = row.querySelector('.city-other-wrap');
+    var cityOtherInput = row.querySelector('.city-other-input');
+    var cityHidden = row.querySelector('.city-hidden');
+
+    if (citySelect.value === '__other__') {
+      cityOtherWrap.classList.remove('hidden');
+      cityOtherInput.focus();
+      cityHidden.value = '';
+    } else {
+      cityOtherWrap.classList.add('hidden');
+      cityOtherInput.value = '';
+      cityHidden.value = citySelect.value;
+    }
+  }
+
+  function updateCityPanel(row) {
+    var countryVal = row.querySelector('.country-select').value;
+    var stateVal   = (row.querySelector('.state-select') || {}).value || '';
+    var cityWrap   = row.querySelector('.city-wrap');
+    var citySelect = row.querySelector('.city-select');
+    var cityHidden = row.querySelector('.city-hidden');
+    var cityOtherWrap = row.querySelector('.city-other-wrap');
+    var cityOtherInput = row.querySelector('.city-other-input');
+
+    if (!countryVal) {
+      cityWrap.classList.add('hidden');
+      cityHidden.value = '';
+      return;
+    }
+
+    if (countryVal === 'US' && !stateVal) {
+      cityWrap.classList.add('hidden');
+      cityHidden.value = '';
+      return;
+    }
+
+    var cities = getCities(countryVal, stateVal);
+    cityWrap.classList.remove('hidden');
+
+    if (cities.length === 0) {
+      // No preset cities — go straight to text input
+      citySelect.classList.add('hidden');
+      cityOtherWrap.classList.remove('hidden');
+      citySelect.value = '__other__';
+    } else {
+      citySelect.classList.remove('hidden');
+      populateCitySelect(citySelect, cities);
+      citySelect.value = '';
+      cityOtherWrap.classList.add('hidden');
+      cityOtherInput.value = '';
+      cityHidden.value = '';
+    }
+  }
+
+  // Nominatim live autocomplete for the free-text input
+  function setupNominatim(textInput, datalistId, getCountry, getState) {
+    var debounce;
+    textInput.addEventListener('input', function() {
+      var q = textInput.value.trim();
+      if (q.length < 2) return;
+      var cc = getCountry();
+      if (!cc || cc === 'OTHER') return;
+      clearTimeout(debounce);
+      debounce = setTimeout(function() {
+        var search = (cc === 'US' && getState()) ? q + ', ' + getState() : q;
+        var url = 'https://nominatim.openstreetmap.org/search?q=' +
+          encodeURIComponent(search) + '&countrycodes=' + cc.toLowerCase() +
+          '&format=json&addressdetails=1&limit=8';
+        fetch(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'SafeTrax/1.0' } })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            var dl = document.getElementById(datalistId);
+            if (!dl) return;
+            dl.innerHTML = '';
+            var seen = {};
+            (data || []).forEach(function(item) {
+              var a = item.address || {};
+              var city = a.city || a.town || a.village || a.county || item.name || '';
+              var label = city;
+              if (a.state) label += (label ? ', ' : '') + a.state;
+              if (!seen[label] && label) {
+                seen[label] = true;
+                var o = document.createElement('option');
+                o.value = label;
+                dl.appendChild(o);
+              }
+            });
+          })
+          .catch(function() {});
+      }, 350);
+    });
+
+    // Keep hidden input in sync as user types
+    textInput.addEventListener('input', function() {
+      var hidden = textInput.closest('.destination-row').querySelector('.city-hidden');
+      if (hidden) hidden.value = textInput.value;
+    });
+  }
+
+  // ─── Build a destination row ─────────────────────────────────────────────────
+
+  var destCount = 0;
+
+  function buildDestRow(removable) {
+    destCount++;
+    var n = destCount;
+
+    var row = document.createElement('div');
+    row.className = 'destination-row';
+    row.setAttribute('data-dest', n);
+
+    row.innerHTML =
+      '<div class="dest-fields">' +
+        '<label for="country_' + n + '" class="sr-only">Country</label>' +
+        '<select name="country_' + n + '" id="country_' + n + '" class="country-select">' +
+          countryOptionsHtml +
+        '</select>' +
+
+        // US state selector
+        '<div class="state-wrap hidden" id="state-wrap-' + n + '">' +
+          '<label for="state_' + n + '" class="sr-only">State</label>' +
+          '<select name="state_' + n + '" id="state_' + n + '" class="state-select" disabled>' +
+            stateOptionsHtml +
+          '</select>' +
+        '</div>' +
+
+        // City area (hidden until country chosen)
+        '<div class="city-wrap hidden" id="city-wrap-' + n + '">' +
+          '<label for="city_select_' + n + '">City</label>' +
+          '<select id="city_select_' + n + '" class="city-select">' +
+            '<option value="">Select city</option>' +
+            '<option value="__other__">Other — type your city</option>' +
+          '</select>' +
+          // Hidden field actually submitted
+          '<input type="hidden" name="city_' + n + '" class="city-hidden">' +
+          // Free-text fallback
+          '<div class="city-other-wrap hidden">' +
+            '<input type="text" id="city_other_' + n + '" class="city-other-input"' +
+              ' placeholder="Type your city…"' +
+              ' list="city-dl-' + n + '" autocomplete="off">' +
+            '<datalist id="city-dl-' + n + '"></datalist>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      (removable ? '<button type="button" class="btn btn-outline remove-dest">Remove</button>' : '');
+
+    // Wire up events
+    var countrySel = row.querySelector('.country-select');
+    var stateSel   = row.querySelector('.state-select');
+    var citySelect = row.querySelector('.city-select');
+    var otherInput = row.querySelector('.city-other-input');
+    var stateWrap  = row.querySelector('.state-wrap');
+
+    countrySel.addEventListener('change', function() {
+      if (countrySel.value === 'US') {
+        stateWrap.classList.remove('hidden');
+        stateSel.removeAttribute('disabled');
+        stateSel.value = '';
+        row.querySelector('.city-wrap').classList.add('hidden');
+        row.querySelector('.city-hidden').value = '';
+      } else {
+        stateWrap.classList.add('hidden');
+        stateSel.value = '';
+        stateSel.setAttribute('disabled', 'disabled');
+        updateCityPanel(row);
+      }
+    });
+
+    stateSel.addEventListener('change', function() {
+      updateCityPanel(row);
+    });
+
+    citySelect.addEventListener('change', function() {
+      handleCitySelectChange(row);
+    });
+
+    setupNominatim(
+      otherInput,
+      'city-dl-' + n,
+      function() { return countrySel.value; },
+      function() { return stateSel.value; }
+    );
+
+    if (removable) {
+      row.querySelector('.remove-dest').addEventListener('click', function() {
+        row.remove();
+      });
+    }
+
+    return row;
+  }
+
+  // ─── Init ────────────────────────────────────────────────────────────────────
+
+  document.getElementById('destinations').appendChild(buildDestRow(false));
+
+  document.getElementById('add-destination').addEventListener('click', function() {
+    document.getElementById('destinations').appendChild(buildDestRow(true));
+  });
+
+  // Prevent submitting if no city selected for a shown city panel
+  document.getElementById('travel-form').addEventListener('submit', function(e) {
+    var rows = document.querySelectorAll('#destinations .destination-row');
+    var ok = true;
+    rows.forEach(function(row) {
+      var countryVal = row.querySelector('.country-select').value;
+      if (!countryVal) return; // blank row is fine — skip
+      var cityWrap = row.querySelector('.city-wrap');
+      if (cityWrap.classList.contains('hidden')) return; // city not yet shown
+      var hidden = row.querySelector('.city-hidden');
+      var otherInput = row.querySelector('.city-other-input');
+      // If "other" path — use text input value
+      if (!hidden.value && otherInput && !otherInput.classList.contains('hidden')) {
+        hidden.value = otherInput.value.trim();
+      }
+      // No city chosen and city panel is visible
+      if (!hidden.value) {
+        ok = false;
+        cityWrap.querySelector('.city-select').focus();
+      }
+    });
+    if (!ok) {
+      e.preventDefault();
+      alert('Please select or enter a city for each destination.');
+    }
+  });
+  </script>
+</body>
+</html>

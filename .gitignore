@@ -1,0 +1,23 @@
+# Dependencies
+backend/node_modules/
+
+# Database (runtime data — not committed)
+database/safetrax.db
+database/safetrax.db-wal
+database/safetrax.db-shm
+
+# Environment
+backend/.env
+.env
+
+# Logs
+*.log
+backend/*.log
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Editor
+.vscode/
+.idea/

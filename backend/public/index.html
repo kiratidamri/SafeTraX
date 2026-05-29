@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTrax</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ── Slim top bar ────────────────────────────── */
+    .topbar {
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .topbar-brand {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.02em;
+    }
+    .topbar-brand span {
+      color: var(--accent-light);
+    }
+    .topbar-actions { display: flex; gap: 8px; align-items: center; }
+    .topbar-actions .btn-auth {
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      border-radius: 6px;
+    }
+    .topbar-actions .btn-auth-outline {
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      border-radius: 6px;
+    }
+    .topbar-user {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.85);
+    }
+
+    /* ── Login drawer ────────────────────────────── */
+    #login-drawer {
+      background: var(--primary-dark);
+      padding: 14px 16px;
+      display: none;
+    }
+    #login-drawer.open { display: block; }
+    #login-drawer form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    #login-drawer input {
+      flex: 1;
+      min-width: 120px;
+      padding: 8px 10px;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.95);
+      margin-bottom: 0;
+    }
+    #login-drawer .btn-auth {
+      padding: 8px 18px;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    #login-drawer .drawer-links {
+      width: 100%;
+      display: flex;
+      gap: 12px;
+      margin-top: 6px;
+      font-size: 0.82rem;
+    }
+    #login-drawer .drawer-links a { color: var(--accent-light); }
+
+    /* ── Travel plan hero ────────────────────────── */
+    .plan-hero {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      padding: 20px 16px 22px;
+      color: #fff;
+    }
+    .plan-hero h2 {
+      color: #fff;
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+    .plan-hero p {
+      font-size: 0.85rem;
+      opacity: 0.85;
+      margin-bottom: 14px;
+    }
+    .plan-hero-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .plan-hero-actions a {
+      flex: 1;
+      text-align: center;
+      padding: 10px 8px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .hero-btn-primary {
+      background: #fff;
+      color: var(--primary);
+    }
+    .hero-btn-secondary {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.5);
+    }
+
+    /* ── Risk widget bar ─────────────────────────── */
+    .risk-bar {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px 0;
+    }
+    .risk-widget {
+      flex: 1;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .risk-widget .rw-val {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.2;
+    }
+    .risk-widget .rw-lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Section label ───────────────────────────── */
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      padding: 14px 16px 6px;
+    }
+
+    /* ── Quick nav chips (logged-in) ─────────────── */
+    .quick-nav {
+      display: flex;
+      gap: 8px;
+      padding: 0 16px 4px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .quick-nav::-webkit-scrollbar { display: none; }
+    .quick-nav a {
+      flex-shrink: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--primary);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+    }
+    .quick-nav a:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── Newsfeed ─────────────────────────────────── */
+    #newsfeed-list { padding: 0 16px; }
+
+    .feed-item {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .feed-item-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .feed-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+    .badge-cdc   { background: #ebf8ff; color: #2b6cb0; }
+    .badge-who   { background: #fff5f5; color: #c53030; }
+    .badge-news  { background: #f0fff4; color: #276749; }
+    .badge-other { background: #faf5ff; color: #6b46c1; }
+
+    .feed-country {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .feed-title {
+      font-size: 0.92rem;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .feed-title a { color: var(--text); text-decoration: none; }
+    .feed-title a:hover { color: var(--accent); text-decoration: underline; }
+    .feed-meta {
+      font-size: 0.77rem;
+      color: var(--text-muted);
+    }
+    .feed-empty {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      padding: 24px 0;
+    }
+    .feed-loading {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* main scroll area */
+    main { padding-bottom: 5rem; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Slim top bar ─────────────────────────────── -->
+  <div class="topbar">
+    <div class="topbar-brand">Safe<span>Trax</span></div>
+    <div class="topbar-actions" id="topbar-guest">
+      <button class="btn btn-auth" id="login-toggle-btn">Log in</button>
+      <a href="signup.html" class="btn btn-auth-outline">Sign up</a>
+    </div>
+    <div class="topbar-actions hidden" id="topbar-loggedin">
+      <span class="topbar-user" id="topbar-username"></span>
+      <button class="btn btn-auth-outline" id="logout-btn">Log out</button>
+    </div>
+  </div>
+
+  <!-- ── Login drawer (slides open under topbar) ──── -->
+  <div id="login-drawer">
+    <form id="login-form">
+      <input type="email"    id="email"    placeholder="Email"    required autocomplete="email">
+      <input type="password" id="password" placeholder="Password" required autocomplete="current-password">
+      <button type="submit" class="btn btn-auth">Log in</button>
+    </form>
+    <div class="drawer-links">
+      <a href="signup.html">Create account</a>
+      <a href="#">Forgot password?</a>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- ── Travel plan hero ──────────────────────── -->
+    <div class="plan-hero">
+      <h2>Plan your next trip</h2>
+      <p>Check health &amp; safety risks before you go — free for everyone.</p>
+      <div class="plan-hero-actions">
+        <a href="travel-plan.html" class="hero-btn-primary">Start travel plan</a>
+        <a href="recommendation.html" class="hero-btn-secondary">Check a destination</a>
+      </div>
+    </div>
+
+    <!-- ── Risk widgets (visible once country is known) ── -->
+    <div class="risk-bar" id="risk-bar" style="display:none">
+      <div class="risk-widget">
+        <div class="rw-val" id="risk-score-val">--</div>
+        <div class="rw-lbl">Risk score</div>
+      </div>
+      <div class="risk-widget">
+        <div class="rw-val" id="risk-cdc-val">--</div>
+        <div class="rw-lbl">CDC</div>
+      </div>
+      <div class="risk-widget">
+        <div class="rw-val" id="risk-who-val">--</div>
+        <div class="rw-lbl">WHO</div>
+      </div>
+      <div class="risk-widget">
+        <div class="rw-val" id="risk-news-val">--</div>
+        <div class="rw-lbl">News</div>
+      </div>
+    </div>
+
+    <!-- ── Quick nav (logged-in only) ───────────────── -->
+    <div id="quick-nav-row" class="hidden">
+      <div class="section-label">Quick access</div>
+      <div class="quick-nav">
+        <a href="travel-plan.html">Travel plan</a>
+        <a href="realtime.html">Real-time</a>
+        <a href="friends.html">Friends</a>
+        <a href="recommendation.html">Destinations</a>
+        <a href="faq.html">Help</a>
+        <a href="profile.html">Profile</a>
+      </div>
+    </div>
+
+    <!-- ── Upcoming trips (logged-in only) ─────────────── -->
+    <div id="upcoming-trips-row" class="hidden">
+      <div class="section-label">Upcoming trips</div>
+      <div style="padding: 0 16px;">
+        <div class="card" style="padding: 0 1.25rem;" id="upcoming-trips-card">
+          <div id="upcoming-trips-list" style="color: var(--text-muted); font-size: 0.9rem; padding: 0.75rem 0;">Loading&hellip;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Global newsfeed ───────────────────────────── -->
+    <div class="section-label">Global health &amp; safety news</div>
+    <div id="newsfeed-list">
+      <div class="feed-loading" id="feed-loading">Loading latest advisories&hellip;</div>
+    </div>
+
+  </main>
+
+  <!-- ── Bottom nav ───────────────────────────────────── -->
+  <nav class="nav-bottom hidden" id="nav-bottom">
+    <a href="index.html" class="active"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Travel plan</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="notifications.html" id="nav-alerts-link">
+      <span class="nav-badge-wrap">
+        🔔
+        <span class="nav-badge hidden" id="nav-notif-badge">0</span>
+      </span>
+      <span class="icon-label">Alerts</span>
+    </a>
+    <a href="profile.html"><span class="icon-label">Profile</span></a>
+  </nav>
+
+  <script>
+    var API_BASE = '';
+
+    // ── Auth state ────────────────────────────────────
+    function setLoggedIn(name, citizenship) {
+      document.getElementById('topbar-guest').classList.add('hidden');
+      document.getElementById('topbar-loggedin').classList.remove('hidden');
+      document.getElementById('topbar-username').textContent = name || 'Traveller';
+      document.getElementById('quick-nav-row').classList.remove('hidden');
+      document.getElementById('nav-bottom').classList.remove('hidden');
+      closeDrawer();
+      if (citizenship) fetchRiskBar(citizenship);
+      // Fetch notification count and upcoming trips when user is identified
+      try {
+        var _uid = localStorage.getItem('safetrax_user_id');
+        if (_uid) {
+          fetchNotifBadge(_uid);
+          fetchUpcomingTrips(_uid);
+        }
+      } catch(e) {}
+    }
+
+    function setLoggedOut() {
+      document.getElementById('topbar-guest').classList.remove('hidden');
+      document.getElementById('topbar-loggedin').classList.add('hidden');
+      document.getElementById('quick-nav-row').classList.add('hidden');
+      document.getElementById('nav-bottom').classList.add('hidden');
+      document.getElementById('risk-bar').style.display = 'none';
+    }
+
+    // ── Login drawer toggle ───────────────────────────
+    var drawerOpen = false;
+    function closeDrawer() {
+      drawerOpen = false;
+      document.getElementById('login-drawer').classList.remove('open');
+    }
+
+    document.getElementById('login-toggle-btn').addEventListener('click', function() {
+      drawerOpen = !drawerOpen;
+      document.getElementById('login-drawer').classList.toggle('open', drawerOpen);
+      if (drawerOpen) document.getElementById('email').focus();
+    });
+
+    // ── Login form submit ─────────────────────────────
+    document.getElementById('login-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var email = document.getElementById('email').value.trim();
+      var password = document.getElementById('password').value;
+
+      // Simple SHA-256-style stub: in production send a real hash or use HTTPS + bcrypt
+      fetch(API_BASE + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.id) {
+          try {
+            localStorage.setItem('safetrax_user_id',    data.id);
+            localStorage.setItem('safetrax_user_name',  data.name);
+            localStorage.setItem('safetrax_email',      data.email);
+            localStorage.setItem('safetrax_citizenship', data.citizenship || 'US');
+            if (data.token) localStorage.setItem('safetrax_token', data.token);
+            // Unified user object for new pages
+            localStorage.setItem('safetrax_user', JSON.stringify({ id: data.id, name: data.name, email: data.email }));
+          } catch(e) {}
+          setLoggedIn(data.name, data.citizenship || 'US');
+        } else {
+          alert(data.error || 'Login failed. Check your credentials.');
+        }
+      })
+      .catch(function() {
+        // Offline demo — still unlock the UI
+        setLoggedIn('Traveller', 'US');
+      });
+    });
+
+    // ── Logout ────────────────────────────────────────
+    document.getElementById('logout-btn').addEventListener('click', function() {
+      try {
+        var token = localStorage.getItem('safetrax_token');
+        if (token) {
+          fetch(API_BASE + '/api/logout', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: token })
+          }).catch(function() {});
+        }
+        ['safetrax_user_id','safetrax_user_name','safetrax_email',
+         'safetrax_citizenship','safetrax_token','safetrax_user'].forEach(function(k) {
+          localStorage.removeItem(k);
+        });
+      } catch(e) {}
+      setLoggedOut();
+    });
+
+    // ── Risk bar ──────────────────────────────────────
+    function colorScore(el, s) {
+      if (s == null || s === '--') return;
+      el.style.color = s <= 3 ? 'var(--safe-low)'
+                      : s <= 6 ? 'var(--safe-mid)'
+                      : s <= 9 ? 'var(--safe-high)'
+                      : 'var(--safe-max)';
+    }
+
+    function fetchRiskBar(countryCode) {
+      fetch(API_BASE + '/api/risk?country=' + encodeURIComponent(countryCode || 'US'))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.score == null) return;
+          document.getElementById('risk-bar').style.display = 'flex';
+          var sv = document.getElementById('risk-score-val');
+          sv.textContent = data.score + '/10';
+          colorScore(sv, data.score);
+
+          var bk = data.breakdown || {};
+          document.getElementById('risk-cdc-val').textContent  = bk.cdc  != null ? bk.cdc.toFixed(1)  : '--';
+          document.getElementById('risk-who-val').textContent  = bk.who  != null ? bk.who.toFixed(1)  : '--';
+          document.getElementById('risk-news-val').textContent = bk.news != null ? bk.news.toFixed(1) : '--';
+
+          // Seed the newsfeed with this country's data too
+          var src = data.sources || {};
+          appendFeedItems(src.cdc_notices  || [], 'CDC');
+          appendFeedItems(src.who_outbreaks|| [], 'WHO');
+          appendFeedItems(src.news_items   || [], null);
+        })
+        .catch(function() {});
+    }
+
+    // ── Newsfeed ──────────────────────────────────────
+    var feedRendered = {};  // dedupe by title
+
+    function badgeClass(source) {
+      if (!source) return 'badge-other';
+      var s = source.toUpperCase();
+      if (s === 'CDC')  return 'badge-cdc';
+      if (s === 'WHO')  return 'badge-who';
+      return 'badge-news';
+    }
+
+    function renderFeedItem(item) {
+      var key = (item.title || '').trim().toLowerCase();
+      if (!key || feedRendered[key]) return null;
+      feedRendered[key] = true;
+
+      var div = document.createElement('div');
+      div.className = 'feed-item';
+
+      var src = (item.source || 'News').toUpperCase();
+      var country = item.country_code ? item.country_code.toUpperCase() : '';
+      var date = item.published_at ? item.published_at.substring(0, 10) : '';
+
+      div.innerHTML =
+        '<div class="feed-item-top">' +
+          '<span class="feed-badge ' + badgeClass(src) + '">' + escHtml(src) + '</span>' +
+          (country ? '<span class="feed-country">' + escHtml(country) + '</span>' : '') +
+        '</div>' +
+        '<div class="feed-title">' +
+          (item.url
+            ? '<a href="' + escHtml(item.url) + '" target="_blank" rel="noopener">' + escHtml(item.title || '') + '</a>'
+            : escHtml(item.title || '')) +
+        '</div>' +
+        (date ? '<div class="feed-meta">' + escHtml(date) + '</div>' : '');
+
+      return div;
+    }
+
+    function appendFeedItems(items, forcedSource) {
+      var list = document.getElementById('newsfeed-list');
+      var empty = document.getElementById('feed-empty-msg');
+      items.forEach(function(item) {
+        if (forcedSource) item = Object.assign({}, item, { source: forcedSource });
+        var el = renderFeedItem(item);
+        if (el) list.appendChild(el);
+      });
+      if (empty) empty.remove();
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function loadNewsfeed() {
+      fetch(API_BASE + '/api/news?limit=30')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          document.getElementById('feed-loading').remove();
+          var items = data.items || [];
+          if (items.length === 0) {
+            document.getElementById('newsfeed-list').innerHTML =
+              '<div class="feed-empty" id="feed-empty-msg">' +
+              'No advisories cached yet. Search a destination to load live data.' +
+              '</div>';
+            return;
+          }
+          appendFeedItems(items, null);
+        })
+        .catch(function() {
+          document.getElementById('feed-loading').textContent =
+            'Could not load news — is the backend running? (node server.js)';
+        });
+    }
+
+    // ── Notification badge ────────────────────────────
+    function fetchNotifBadge(userId) {
+      fetch(API_BASE + '/api/notifications?user_id=' + encodeURIComponent(userId))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var count = data.unread || 0;
+          var badge = document.getElementById('nav-notif-badge');
+          if (!badge) return;
+          if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.remove('hidden');
+          } else {
+            badge.classList.add('hidden');
+          }
+        })
+        .catch(function() {});
+    }
+
+    // ── Upcoming trips card ───────────────────────────
+    function formatTripDate(iso) {
+      if (!iso) return '';
+      var d = new Date(iso + 'T00:00:00');
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function fetchUpcomingTrips(userId) {
+      fetch(API_BASE + '/api/trips?user_id=' + encodeURIComponent(userId))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var plans = (data.plans || []).filter(function(p) { return p.status === 'active'; }).slice(0, 2);
+          var listEl = document.getElementById('upcoming-trips-list');
+          if (!listEl) return;
+          document.getElementById('upcoming-trips-row').classList.remove('hidden');
+          if (plans.length === 0) {
+            listEl.innerHTML =
+              '<div style="padding:0.75rem 0;color:var(--text-muted);font-size:0.9rem;">' +
+              'No active trips. <a href="travel-plan.html">Plan a trip</a></div>';
+            return;
+          }
+          var html = '';
+          plans.forEach(function(p, i) {
+            var route = (p.route && p.route !== 'null') ? p.route : 'Trip #' + p.id;
+            var transport = p.transport || '';
+            var icon = { air:'✈', train:'🚂', bus:'🚌', cruise:'🚢', car:'🚗' }[transport] || '🗺';
+            var border = i < plans.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
+            html +=
+              '<div style="padding:0.75rem 0;' + border + '">' +
+                '<div style="font-weight:600;color:var(--primary);font-size:0.95rem;">' + escHtml(route) + '</div>' +
+                '<div style="font-size:0.82rem;color:var(--text-muted);margin-top:0.2rem;">' +
+                  icon + ' ' + formatTripDate(p.date_start) + ' &ndash; ' + formatTripDate(p.date_end) +
+                '</div>' +
+              '</div>';
+          });
+          listEl.innerHTML = html +
+            '<div style="padding:0.5rem 0;"><a href="history.html" style="font-size:0.85rem;">View all trips &rarr;</a></div>';
+        })
+        .catch(function() {
+          // Silently hide upcoming trips if fetch fails
+        });
+    }
+
+    // ── Boot ──────────────────────────────────────────
+    // Restore session: validate token with /api/me, fall back to localStorage
+    (function() {
+      try {
+        var token = localStorage.getItem('safetrax_token');
+        if (token) {
+          fetch(API_BASE + '/api/me?token=' + encodeURIComponent(token))
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+              if (data && data.id) {
+                // Refresh local cache with server-authoritative data
+                try {
+                  localStorage.setItem('safetrax_user_id',    data.id);
+                  localStorage.setItem('safetrax_user_name',  data.name);
+                  localStorage.setItem('safetrax_email',      data.email);
+                  localStorage.setItem('safetrax_citizenship', data.citizenship || 'US');
+                  localStorage.setItem('safetrax_user', JSON.stringify({ id: data.id, name: data.name, email: data.email }));
+                } catch(e) {}
+                setLoggedIn(data.name, data.citizenship || 'US');
+                fetchNotifBadge(data.id);
+                fetchUpcomingTrips(data.id);
+              } else {
+                // Token invalid — fall back to legacy keys
+                var uid = localStorage.getItem('safetrax_user_id');
+                if (uid) {
+                  setLoggedIn(localStorage.getItem('safetrax_user_name') || 'Traveller', localStorage.getItem('safetrax_citizenship') || 'US');
+                  fetchNotifBadge(uid);
+                  fetchUpcomingTrips(uid);
+                }
+              }
+            })
+            .catch(function() {
+              var uid = localStorage.getItem('safetrax_user_id');
+              if (uid) {
+                setLoggedIn(localStorage.getItem('safetrax_user_name') || 'Traveller', localStorage.getItem('safetrax_citizenship') || 'US');
+                fetchNotifBadge(uid);
+                fetchUpcomingTrips(uid);
+              }
+            });
+        } else {
+          var uid = localStorage.getItem('safetrax_user_id');
+          if (uid) {
+            setLoggedIn(localStorage.getItem('safetrax_user_name') || 'Traveller', localStorage.getItem('safetrax_citizenship') || 'US');
+            fetchNotifBadge(uid);
+            fetchUpcomingTrips(uid);
+          }
+        }
+      } catch(e) {}
+    })();
+
+    loadNewsfeed();
+  </script>
+</body>
+</html>

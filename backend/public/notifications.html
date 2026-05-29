@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTrax – Notifications</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .notif-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    .notif-header-left h1 { color: white; font-size: 1.4rem; font-weight: 700; }
+    .notif-header-left p  { font-size: 0.85rem; opacity: 0.9; margin-top: 0.1rem; }
+    .btn-mark-read {
+      background: rgba(255,255,255,0.18);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: var(--radius);
+      padding: 0.45rem 0.9rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-mark-read:hover { background: rgba(255,255,255,0.3); }
+
+    .notif-empty {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    .notif-loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    main { padding-bottom: 5rem; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ────────────────────────────────────────── -->
+  <div class="notif-header">
+    <div class="notif-header-left">
+      <h1>SafeTrax</h1>
+      <p>Notifications</p>
+    </div>
+    <button class="btn-mark-read" id="mark-all-btn">Mark all read</button>
+  </div>
+
+  <main class="container">
+    <div id="notif-loading" class="notif-loading">Loading notifications&hellip;</div>
+    <div id="notif-list"></div>
+  </main>
+
+  <!-- ── Bottom nav ──────────────────────────────────────── -->
+  <nav class="nav-bottom">
+    <a href="index.html"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Plans</span></a>
+    <a href="realtime.html"><span class="icon-label">Real-time</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="faq.html"><span class="icon-label">Help</span></a>
+  </nav>
+
+  <script>
+    var API = '';
+
+    // ── Auth guard ────────────────────────────────────────
+    var user = null;
+    try { user = JSON.parse(localStorage.getItem('safetrax_user')); } catch(e) {}
+    // fallback: support legacy separate keys used by index.html
+    if (!user) {
+      var uid = localStorage.getItem('safetrax_user_id');
+      if (uid) {
+        user = {
+          id:    uid,
+          name:  localStorage.getItem('safetrax_user_name') || 'Traveller',
+          email: localStorage.getItem('safetrax_email') || ''
+        };
+      }
+    }
+    if (!user) { window.location.href = 'index.html'; }
+
+    // ── Relative time helper ──────────────────────────────
+    function relativeTime(iso) {
+      if (!iso) return '';
+      var now  = Date.now();
+      var then = new Date(iso).getTime();
+      var diff = Math.floor((now - then) / 1000); // seconds
+      if (diff < 60)          return 'just now';
+      if (diff < 3600)        return Math.floor(diff / 60) + ' min ago';
+      if (diff < 86400)       return Math.floor(diff / 3600) + ' hour' + (Math.floor(diff / 3600) > 1 ? 's' : '') + ' ago';
+      if (diff < 172800)      return 'yesterday';
+      return Math.floor(diff / 86400) + ' days ago';
+    }
+
+    // ── Icon map ──────────────────────────────────────────
+    var ICON_MAP = {
+      risk_alert:    { emoji: '🚨', cls: 'risk'   },
+      friend_update: { emoji: '👥', cls: 'friend' },
+      plan_reminder: { emoji: '📅', cls: 'plan'   },
+      system:        { emoji: 'ℹ️', cls: 'system' },
+    };
+
+    function iconFor(type) {
+      return ICON_MAP[type] || { emoji: 'ℹ️', cls: 'system' };
+    }
+
+    // ── Render one notification ───────────────────────────
+    function renderItem(n) {
+      var icon   = iconFor(n.type);
+      var unread = n.read === 0;
+      var item   = document.createElement('div');
+      item.className = 'notif-item' + (unread ? ' unread' : '');
+      item.dataset.id = n.id;
+
+      item.innerHTML =
+        '<div class="notif-icon ' + icon.cls + '">' + icon.emoji + '</div>' +
+        (unread ? '<div class="notif-dot"></div>' : '') +
+        '<div class="notif-body">' +
+          '<div class="notif-title">' + esc(n.title || '') + '</div>' +
+          '<div class="notif-msg">'   + esc(n.message || '') + '</div>' +
+          '<div class="notif-time">'  + relativeTime(n.created_at) + '</div>' +
+        '</div>';
+
+      item.addEventListener('click', function() {
+        markRead(n.id, item);
+      });
+
+      return item;
+    }
+
+    // ── Mark single notification read ─────────────────────
+    function markRead(notifId, el) {
+      if (!el.classList.contains('unread')) return;
+      fetch(API + '/api/notifications/read', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ user_id: user.id, notification_id: notifId })
+      }).catch(function() {});
+      el.classList.remove('unread');
+      var dot = el.querySelector('.notif-dot');
+      if (dot) dot.remove();
+    }
+
+    // ── Mark all read ─────────────────────────────────────
+    document.getElementById('mark-all-btn').addEventListener('click', function() {
+      fetch(API + '/api/notifications/read', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ user_id: user.id })
+      })
+      .then(function() { loadNotifications(); })
+      .catch(function() { loadNotifications(); });
+    });
+
+    // ── Load and render ───────────────────────────────────
+    function loadNotifications() {
+      var loading = document.getElementById('notif-loading');
+      var list    = document.getElementById('notif-list');
+      loading.style.display = 'block';
+      list.innerHTML = '';
+
+      fetch(API + '/api/notifications?user_id=' + encodeURIComponent(user.id))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          loading.style.display = 'none';
+          var items = data.items || [];
+          if (items.length === 0) {
+            list.innerHTML = '<div class="notif-empty">You\'re all caught up ✓</div>';
+            return;
+          }
+          items.forEach(function(n) {
+            list.appendChild(renderItem(n));
+          });
+        })
+        .catch(function() {
+          loading.style.display = 'none';
+          list.innerHTML = '<div class="notif-empty">Could not load notifications. Is the backend running?</div>';
+        });
+    }
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    loadNotifications();
+  </script>
+</body>
+</html>

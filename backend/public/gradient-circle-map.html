@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gradient Circle on MapLibre</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body { margin: 0; padding: 0; }
+    #map {
+      height: 400px;
+      width: 100%;
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    var map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://tiles.openfreemap.org/styles/bright',
+      center: [-122.4194, 37.7749],
+      zoom: 12
+    });
+
+    function addGradientCircle(map, centerLngLat, radiusMeters, options) {
+      options = options || {};
+      var container = map.getContainer();
+      if (!container.style.position) container.style.position = 'relative';
+      var canvas = document.createElement('canvas');
+      canvas.style.position = 'absolute';
+      canvas.style.left = '0';
+      canvas.style.top = '0';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.pointerEvents = 'none';
+      container.appendChild(canvas);
+
+      function draw() {
+        var lng = centerLngLat[0], lat = centerLngLat[1];
+        var centerPx = map.project(centerLngLat);
+        var offsetLat = radiusMeters / 111320;
+        var p2 = map.project([lng, lat + offsetLat]);
+        var radiusPx = Math.sqrt(Math.pow(p2.x - centerPx.x, 2) + Math.pow(p2.y - centerPx.y, 2));
+        var w = container.offsetWidth;
+        var h = container.offsetHeight;
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        var innerColor = options.innerColor || 'rgba(30, 58, 95, 0.4)';
+        var outerColor = options.outerColor || 'rgba(30, 58, 95, 0)';
+        var gradient = ctx.createRadialGradient(centerPx.x, centerPx.y, 0, centerPx.x, centerPx.y, radiusPx);
+        gradient.addColorStop(0, innerColor);
+        gradient.addColorStop(1, outerColor);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(centerPx.x, centerPx.y, radiusPx, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+
+      map.on('load', draw);
+      map.on('move', draw);
+      map.on('moveend', draw);
+      map.on('zoom', draw);
+      map.on('resize', draw);
+    }
+
+    map.on('load', function() {
+      addGradientCircle(map, [-122.4194, 37.7749], 80467, { /* 50 miles */
+        innerColor: 'rgba(30, 58, 95, 0.4)',
+        outerColor: 'rgba(30, 58, 95, 0)'
+      });
+    });
+  </script>
+</body>
+</html>

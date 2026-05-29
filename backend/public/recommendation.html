@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>SafeTrax – Recommendation & risk analysis</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    .risk-bar-wrap { margin: 0.75rem 0 0.25rem; }
+    .risk-bar-track {
+      height: 10px; border-radius: 999px;
+      background: var(--border); overflow: hidden;
+    }
+    .risk-bar-fill {
+      height: 100%; border-radius: 999px;
+      transition: width 0.6s ease;
+    }
+    .risk-bar-fill.low      { background: #38a169; }
+    .risk-bar-fill.moderate { background: #d69e2e; }
+    .risk-bar-fill.high     { background: #e53e3e; }
+    .risk-bar-fill.extreme  { background: #742a2a; }
+    .risk-label { font-size: 0.8rem; font-weight: 600; margin-top: 0.25rem; text-transform: capitalize; }
+    .risk-label.low      { color: #38a169; }
+    .risk-label.moderate { color: #d69e2e; }
+    .risk-label.high     { color: #e53e3e; }
+    .risk-label.extreme  { color: #742a2a; }
+    .risk-brief {
+      font-size: 0.88rem; color: var(--text-muted); line-height: 1.5;
+      background: rgba(84,138,184,0.06); border-radius: var(--radius);
+      padding: 0.65rem 0.85rem; margin-top: 0.75rem; border-left: 3px solid var(--accent);
+    }
+    .risk-brief-loading { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>SafeTrax</h1>
+    <p style="font-size: 0.9rem; opacity: 0.95;">Recommendation</p>
+  </header>
+
+  <main class="container">
+    <!-- Total risk score (API-driven) -->
+    <div class="card">
+      <h2>Overall risk score</h2>
+      <p style="font-size: 2rem; font-weight: 700; color: var(--primary);" id="total-risk">…</p>
+      <p style="font-size: 0.9rem; color: var(--text-muted);" id="risk-dest-label">Fetching from CDC, WHO &amp; news…</p>
+      <p style="margin-top: 0.5rem;" id="risk-label-badge"></p>
+
+      <!-- Visual risk bar -->
+      <div class="risk-bar-wrap" id="risk-bar-wrap" style="display:none;">
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" id="risk-bar-fill" style="width:0%;"></div>
+        </div>
+        <div class="risk-label" id="risk-bar-label"></div>
+      </div>
+
+      <!-- AI risk brief -->
+      <div id="risk-brief-container" style="display:none;">
+        <p class="risk-brief-loading" id="risk-brief-loading">Generating AI risk brief…</p>
+        <div class="risk-brief" id="risk-brief-text" style="display:none;"></div>
+      </div>
+
+      <!-- Score breakdown -->
+      <div id="risk-breakdown" style="margin-top:0.75rem; display:none;">
+        <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:600;">Formula: score = 0.40×CDC + 0.30×WHO + 0.20×NEWS + 0.10×BASE</p>
+        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem;">
+          <span class="risk-badge risk-0-3" id="bd-cdc">CDC —</span>
+          <span class="risk-badge risk-0-3" id="bd-who">WHO —</span>
+          <span class="risk-badge risk-0-3" id="bd-news">News —</span>
+          <span class="risk-badge risk-0-3" id="bd-base">Base —</span>
+        </div>
+        <div id="risk-source-detail" style="font-size:0.8rem; color:var(--text-muted);"></div>
+      </div>
+      <p id="risk-error" style="font-size:0.85rem; color:var(--warning); margin-top:0.5rem; display:none;"></p>
+    </div>
+
+    <!-- Risk scale legend -->
+    <div class="card">
+      <h3 class="card-title">Risk scale</h3>
+      <p style="font-size: 0.85rem; margin-bottom: 0.5rem;"><span class="risk-badge risk-0-3">0–3</span> Low — generally safe travel</p>
+      <p style="font-size: 0.85rem; margin-bottom: 0.5rem;"><span class="risk-badge risk-4-6">4–6</span> Intermediate — be cautious</p>
+      <p style="font-size: 0.85rem; margin-bottom: 0.5rem;"><span class="risk-badge risk-7-9">7–9</span> High — follow all advisories</p>
+      <p style="font-size: 0.85rem;"><span class="risk-badge risk-10">10</span> Extreme — reconsider travel</p>
+    </div>
+
+    <!-- Area map (MapLibre / OpenMapTiles) -->
+    <div class="card">
+      <h3 class="card-title">Area map — risk by sub-region</h3>
+      <div id="map" class="map-placeholder"></div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Sub-regions within 100 miles of your destination show individual scores.</p>
+    </div>
+
+    <!-- Supporting links -->
+    <div class="card">
+      <h3 class="card-title">Official advisories</h3>
+      <ul class="link-list">
+        <li><a href="https://www.cdc.gov/travel" target="_blank" rel="noopener">CDC Travel Health</a></li>
+        <li><a href="https://www.who.int/emergencies" target="_blank" rel="noopener">WHO Emergencies</a></li>
+        <li><a href="#" target="_blank">Local government travel warning</a></li>
+      </ul>
+    </div>
+
+    <!-- Verify checklists & recommendations -->
+    <div class="card">
+      <h3 class="card-title">Verify your checklist</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Confirm items and choose recommendations to follow.</p>
+      <div class="check-item"><input type="checkbox" name="verify_immigration" id="v1"><label for="v1">Immigration requirements met</label></div>
+      <div class="check-item"><input type="checkbox" name="verify_health" id="v2"><label for="v2">Health & vaccinations verified</label></div>
+      <div class="check-item"><input type="checkbox" name="verify_law" id="v3"><label for="v3">Local law & regulations reviewed</label></div>
+      <div class="check-item"><input type="checkbox" name="verify_weather" id="v4"><label for="v4">Weather & seasonal risks checked</label></div>
+    </div>
+
+    <div class="card card-ads">
+      <span class="ad-badge">Ad</span>
+      <h3 class="card-title">Sponsored — recommendations you may follow</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Partners that can help (vaccines, transport, health). Choose what to follow.</p>
+      <div class="ads-list">
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Vaccine providers near you</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Travel health clinics</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Car rental & transport</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Hospitals & urgent care</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+        <a href="#" class="ad-item" target="_blank" rel="noopener sponsored">
+          <span class="ad-item-title">Drug stores & pharmacies</span>
+          <span class="ad-item-tag">Sponsored</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Real-time notifications -->
+    <div class="card">
+      <h3 class="card-title">Real-time notifications</h3>
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">We'll send updates every 2 hours and confirm compliance during your trip.</p>
+      <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 400;">
+        <input type="checkbox" name="realtime_notify" checked style="width: auto;">
+        Enable real-time notifications (every 2 hours)
+      </label>
+      <p style="font-size: 0.85rem; margin-top: 0.5rem;">Compliance status will be checked and you'll be notified if anything needs attention.</p>
+      <a href="realtime.html" class="btn btn-primary btn-block mt-2">Open real-time dashboard</a>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Use this when your travel date starts for live risk, weather & concerns.</p>
+    </div>
+  </main>
+
+  <nav class="nav-bottom">
+    <a href="index.html"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Travel plan</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="profile.html"><span class="icon-label">Profile</span></a>
+    <a href="realtime.html"><span class="icon-label">Real-time</span></a>
+  </nav>
+
+  <script>
+    var API_BASE = ''; // change to your production URL
+
+    function riskLabel(score) {
+      if (score <= 3) return 'low';
+      if (score <= 6) return 'moderate';
+      if (score <= 9) return 'high';
+      return 'extreme';
+    }
+
+    function badgeClass(score) {
+      if (score <= 3)  return 'risk-0-3';
+      if (score <= 6)  return 'risk-4-6';
+      if (score <= 9)  return 'risk-7-9';
+      return 'risk-10';
+    }
+
+    var RISK_LABELS = ['Low', 'Low', 'Low', 'Low',
+                       'Intermediate', 'Intermediate', 'Intermediate',
+                       'High', 'High', 'High', 'Extreme'];
+
+    function renderRisk(data, destLabel) {
+      var scoreEl   = document.getElementById('total-risk');
+      var destEl    = document.getElementById('risk-dest-label');
+      var badgeEl   = document.getElementById('risk-label-badge');
+      var breakdown = document.getElementById('risk-breakdown');
+      var detailEl  = document.getElementById('risk-source-detail');
+
+      var s = data.score;
+      scoreEl.textContent = s;
+      destEl.textContent  = 'Risk score for ' + (destLabel || 'your destination');
+
+      var cls = badgeClass(s);
+      badgeEl.innerHTML = '<span class="risk-badge ' + cls + '">' + s + '/10 — ' + (RISK_LABELS[Math.round(s)] || 'Unknown') + '</span>';
+
+      var b = data.breakdown;
+      breakdown.style.display = 'block';
+      var bdCDC  = document.getElementById('bd-cdc');
+      var bdWHO  = document.getElementById('bd-who');
+      var bdNews = document.getElementById('bd-news');
+      var bdBase = document.getElementById('bd-base');
+      bdCDC.textContent  = 'CDC '  + b.cdc.toFixed(1);
+      bdWHO.textContent  = 'WHO '  + b.who.toFixed(1);
+      bdNews.textContent = 'News ' + b.news.toFixed(1);
+      bdBase.textContent = 'Base ' + b.base.toFixed(1);
+      [bdCDC, bdWHO, bdNews, bdBase].forEach(function(el, i) {
+        var v = [b.cdc, b.who, b.news, b.base][i];
+        el.className = 'risk-badge ' + badgeClass(v);
+      });
+
+      var html = '';
+      var notices   = (data.sources && data.sources.cdc_notices)   || [];
+      var outbreaks = (data.sources && data.sources.who_outbreaks)  || [];
+      var newsItems = (data.sources && data.sources.news_items)     || [];
+
+      if (notices.length) {
+        html += '<strong>CDC Travel Notices</strong><br>';
+        notices.forEach(function(n) {
+          html += '&bull; Level ' + n.level + ' — ' + n.title + '<br>';
+        });
+      }
+      if (outbreaks.length) {
+        html += '<strong style="margin-top:0.4rem;display:block;">WHO Outbreaks</strong>';
+        outbreaks.forEach(function(o) {
+          html += '&bull; [' + o.recency + '] ' + o.title + '<br>';
+        });
+      }
+      if (newsItems.length) {
+        html += '<strong style="margin-top:0.4rem;display:block;">Safety News (past 7 days)</strong>';
+        newsItems.forEach(function(a) {
+          html += '&bull; ' + a.title + '<br>';
+        });
+      }
+      if (!notices.length && !outbreaks.length && !newsItems.length) {
+        html = 'No active CDC notices, WHO outbreaks, or negative news found for this destination.';
+      }
+      detailEl.innerHTML = html;
+
+      // Visual risk bar
+      var barWrap  = document.getElementById('risk-bar-wrap');
+      var barFill  = document.getElementById('risk-bar-fill');
+      var barLabel = document.getElementById('risk-bar-label');
+      var lbl = riskLabel(s);
+      barFill.style.width = Math.min(s / 10 * 100, 100) + '%';
+      barFill.className = 'risk-bar-fill ' + lbl;
+      barLabel.textContent = lbl;
+      barLabel.className = 'risk-label ' + lbl;
+      barWrap.style.display = 'block';
+    }
+
+    // Read destination from travel-plan query string
+    var params = new URLSearchParams(location.search);
+    var country = params.get('country_1') || 'US';
+    var state   = params.get('state_1')   || null;
+    var city    = params.get('city_1')    || null;
+    var destLabel = [city, state, country].filter(Boolean).join(', ');
+    document.getElementById('risk-dest-label').textContent = 'Fetching risk for ' + (destLabel || country) + '…';
+
+    fetch(API_BASE + '/api/risk?country=' + encodeURIComponent(country) +
+          (state ? '&state=' + encodeURIComponent(state) : '') +
+          (city  ? '&city='  + encodeURIComponent(city)  : ''))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) throw new Error(data.error);
+        renderRisk(data, destLabel);
+
+        // Fetch AI risk brief
+        var briefContainer = document.getElementById('risk-brief-container');
+        var briefLoading   = document.getElementById('risk-brief-loading');
+        var briefText      = document.getElementById('risk-brief-text');
+        briefContainer.style.display = 'block';
+        fetch(API_BASE + '/api/risk-brief', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ country_code: country, country_name: destLabel || country })
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(bd) {
+            briefLoading.style.display = 'none';
+            briefText.textContent = bd.brief || '';
+            briefText.style.display = 'block';
+          })
+          .catch(function() {
+            briefLoading.style.display = 'none';
+          });
+      })
+      .catch(function(err) {
+        document.getElementById('total-risk').textContent = '—';
+        document.getElementById('risk-dest-label').textContent = '';
+        var e = document.getElementById('risk-error');
+        e.textContent = 'Risk score unavailable: ' + err.message + '. Is the SafeTrax backend running?';
+        e.style.display = 'block';
+      });
+
+    // ── Destination map (OpenFreeMap — no API key, OSM data) ───────────────
+    var map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://tiles.openfreemap.org/styles/bright',
+      center: [0, 20],   // world view until geocode resolves
+      zoom: 2
+    });
+
+    function addGradientCircle(map, centerLngLat, radiusMeters, options) {
+      options = options || {};
+      var container = map.getContainer();
+      if (!container.style.position) container.style.position = 'relative';
+      var canvas = document.createElement('canvas');
+      canvas.style.position = 'absolute';
+      canvas.style.left = '0'; canvas.style.top = '0';
+      canvas.style.width = '100%'; canvas.style.height = '100%';
+      canvas.style.pointerEvents = 'none';
+      container.appendChild(canvas);
+      function getCenter() { return typeof centerLngLat === 'function' ? centerLngLat() : centerLngLat; }
+      function draw() {
+        var c = getCenter();
+        var lng = c[0], lat = c[1];
+        var centerPx = map.project(c);
+        var offsetLat = radiusMeters / 111320;
+        var p2 = map.project([lng, lat + offsetLat]);
+        var radiusPx = Math.sqrt(Math.pow(p2.x - centerPx.x, 2) + Math.pow(p2.y - centerPx.y, 2));
+        var w = container.offsetWidth, h = container.offsetHeight;
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        var innerColor = options.innerColor || 'rgba(30, 58, 95, 0.4)';
+        var outerColor = options.outerColor || 'rgba(30, 58, 95, 0)';
+        var gradient = ctx.createRadialGradient(centerPx.x, centerPx.y, 0, centerPx.x, centerPx.y, radiusPx);
+        gradient.addColorStop(0, innerColor); gradient.addColorStop(1, outerColor);
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(centerPx.x, centerPx.y, radiusPx, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      map.on('load', draw);
+      map.on('move', draw);
+      map.on('moveend', draw);
+      map.on('zoom', draw);
+      map.on('resize', draw);
+    }
+
+    // Geocode the destination from URL params using Nominatim (OpenStreetMap, free)
+    (function geocodeDestination() {
+      var q = [city, state, country].filter(Boolean).join(', ');
+      if (!q) return;
+      fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q) + '&format=json&limit=1', {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'SafeTrax-TravelApp/1.0' }
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data || !data[0]) return;
+          var lng = parseFloat(data[0].lon);
+          var lat = parseFloat(data[0].lat);
+          // Zoom level: city=11, state=7, country=5
+          var zoom = city ? 11 : state ? 7 : 5;
+          map.setCenter([lng, lat]);
+          map.setZoom(zoom);
+
+          // Add marker and gradient circle once map is ready
+          function placeOnMap() {
+            new maplibregl.Marker({ color: '#1e3a5f' }).setLngLat([lng, lat]).addTo(map);
+            addGradientCircle(map, [lng, lat], 80467, {
+              innerColor: 'rgba(30, 58, 95, 0.4)',
+              outerColor: 'rgba(30, 58, 95, 0)'
+            });
+          }
+          if (map.loaded()) { placeOnMap(); } else { map.on('load', placeOnMap); }
+        })
+        .catch(function() {}); // silently skip if geocode fails
+    })();
+  </script>
+</body>
+</html>

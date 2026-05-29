@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeTrax Admin Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:   #1e3a5f;
+      --accent:    #3182ce;
+      --bg:        #f0f4f8;
+      --card-bg:   #ffffff;
+      --sidebar-w: 220px;
+      --blue-1:    #3182ce;
+      --blue-2:    #63b3ed;
+      --blue-3:    #2c5282;
+      --blue-4:    #1e3a5f;
+      --blue-5:    #90cdf4;
+      --blue-6:    #bee3f8;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: #2d3748;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--primary);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 28px 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    .sidebar-logo .logo-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+    }
+    .sidebar-logo .logo-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .sidebar-nav {
+      padding: 16px 0;
+      flex: 1;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      color: rgba(255,255,255,0.7);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-item:hover {
+      background: rgba(255,255,255,0.08);
+      color: #ffffff;
+    }
+    .nav-item.active {
+      background: rgba(49,130,206,0.25);
+      color: #ffffff;
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
+    .nav-icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+    }
+
+    /* ── Main content ── */
+    #main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      background: var(--card-bg);
+      border-bottom: 1px solid #e2e8f0;
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .topbar-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .topbar-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #718096;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #48bb78;
+    }
+
+    .content {
+      padding: 28px;
+      flex: 1;
+    }
+
+    /* ── Sections ── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── KPI Cards ── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 20px 22px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border-top: 3px solid var(--accent);
+    }
+    .kpi-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #718096;
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+    .kpi-sub {
+      font-size: 12px;
+      color: #a0aec0;
+      margin-top: 6px;
+    }
+
+    /* ── Chart rows ── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 20px 22px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .chart-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 16px;
+    }
+    .chart-wrap {
+      position: relative;
+      height: 220px;
+    }
+    .chart-wrap canvas { max-height: 220px; }
+
+    /* ── Tables ── */
+    .table-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 20px 22px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      margin-bottom: 24px;
+    }
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 16px;
+    }
+    .table-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .search-box {
+      padding: 8px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 260px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-box:focus { border-color: var(--accent); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      text-align: left;
+      padding: 10px 12px;
+      background: #f7fafc;
+      color: #4a5568;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    tbody tr {
+      border-bottom: 1px solid #f0f4f8;
+      transition: background 0.1s;
+    }
+    tbody tr:hover { background: #f7fafc; }
+    tbody td {
+      padding: 10px 12px;
+      vertical-align: middle;
+    }
+
+    /* ── Tags / Badges ── */
+    .tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      margin: 2px 2px 2px 0;
+    }
+    .tag-blue  { background: #ebf8ff; color: #2b6cb0; }
+    .tag-green { background: #f0fff4; color: #276749; }
+    .tag-red   { background: #fff5f5; color: #c53030; }
+    .tag-gray  { background: #edf2f7; color: #4a5568; }
+
+    .badge-risk {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .risk-low    { background: #c6f6d5; color: #22543d; }
+    .risk-medium { background: #fefcbf; color: #744210; }
+    .risk-high   { background: #fed7d7; color: #822727; }
+
+    .consent-yes { color: #38a169; font-weight: 700; }
+    .consent-no  { color: #e53e3e; font-weight: 700; }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #718096;
+    }
+    .page-btn {
+      padding: 6px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--primary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .page-btn:hover:not(:disabled) {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .page-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* ── Risk Intel summary ── */
+    .risk-summary {
+      font-size: 13px;
+      color: #718096;
+      text-align: center;
+      padding: 12px 0 0;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 4px;
+    }
+
+    /* ── AI Analyst ── */
+    .ai-header {
+      margin-bottom: 20px;
+    }
+    .ai-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .ai-header p {
+      font-size: 13px;
+      color: #718096;
+    }
+
+    .ai-banner {
+      background: #ebf8ff;
+      border: 1px solid #bee3f8;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #2b6cb0;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .chip {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: var(--card-bg);
+      border: 1px solid #bee3f8;
+      color: var(--accent);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .chip:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .chat-window {
+      background: var(--card-bg);
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      height: 420px;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .chat-empty {
+      color: #a0aec0;
+      font-size: 14px;
+      text-align: center;
+      margin: auto;
+    }
+    .msg {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+    .msg-user {
+      background: var(--accent);
+      color: #ffffff;
+      align-self: flex-end;
+      border-bottom-right-radius: 3px;
+    }
+    .msg-assistant {
+      background: #f7fafc;
+      color: #2d3748;
+      align-self: flex-start;
+      border-bottom-left-radius: 3px;
+      border: 1px solid #e2e8f0;
+    }
+    .msg-thinking {
+      background: #f0fff4;
+      color: #276749;
+      align-self: flex-start;
+      font-style: italic;
+      font-size: 13px;
+      border: 1px dashed #9ae6b4;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 10px;
+      padding: 14px 18px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .chat-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      resize: none;
+      font-family: Arial, sans-serif;
+      transition: border-color 0.15s;
+    }
+    .chat-input:focus { border-color: var(--accent); }
+    .chat-send-btn {
+      padding: 10px 22px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .chat-send-btn:hover { background: var(--blue-3); }
+    .chat-send-btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── Loading ── */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #a0aec0;
+      font-size: 14px;
+    }
+    .spinner {
+      display: inline-block;
+      width: 20px; height: 20px;
+      border: 3px solid #e2e8f0;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Misc ── */
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">SafeTrax</div>
+    <div class="logo-sub">Admin Dashboard</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" data-section="overview">
+      <span class="nav-icon">&#9632;</span> Overview
+    </div>
+    <div class="nav-item" data-section="users">
+      <span class="nav-icon">&#128100;</span> Users
+    </div>
+    <div class="nav-item" data-section="risk">
+      <span class="nav-icon">&#9888;</span> Risk Intel
+    </div>
+    <div class="nav-item" data-section="ai">
+      <span class="nav-icon">&#129302;</span> AI Analyst
+    </div>
+  </nav>
+  <div class="sidebar-footer">SafeTrax &copy; 2025</div>
+</aside>
+
+<!-- ── Main ── -->
+<main id="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbarTitle">Overview</div>
+    <div class="topbar-status">
+      <div class="status-dot"></div>
+      <span id="lastRefresh">Loading...</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── SECTION: Overview ── -->
+    <div class="section active" id="section-overview">
+      <!-- KPI row -->
+      <div class="kpi-row" id="kpiRow">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Users</div>
+          <div class="kpi-value" id="kpiTotalUsers">—</div>
+          <div class="kpi-sub" id="kpiConsentSub">— consented</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Active Travel Plans</div>
+          <div class="kpi-value" id="kpiActivePlans">—</div>
+          <div class="kpi-sub" id="kpiTotalPlansSub">— total plans</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Countries Tracked</div>
+          <div class="kpi-value" id="kpiCountries">—</div>
+          <div class="kpi-sub" id="kpiLocSub">— active locations (24h)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Alerts</div>
+          <div class="kpi-value" id="kpiAlerts">—</div>
+          <div class="kpi-sub" id="kpiAlertSub">CDC + WHO</div>
+        </div>
+      </div>
+
+      <!-- Charts row 1 -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">User Growth (30 days)</div>
+          <div class="chart-wrap"><canvas id="chartGrowth"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Top Destinations</div>
+          <div class="chart-wrap"><canvas id="chartDests"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Charts row 2 -->
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">Transport Modes</div>
+          <div class="chart-wrap"><canvas id="chartTransport"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Health Concerns</div>
+          <div class="chart-wrap"><canvas id="chartHealth"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION: Users ── -->
+    <div class="section" id="section-users">
+      <div class="table-card">
+        <div class="table-header">
+          <h2>Users</h2>
+          <input
+            type="text"
+            class="search-box"
+            id="userSearch"
+            placeholder="Search by name, email, citizenship..."
+          />
+        </div>
+        <div id="usersLoading" class="loading"><span class="spinner"></span>Loading users...</div>
+        <div id="usersTableWrap" style="display:none;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Citizenship</th>
+                <th>Blood Type</th>
+                <th>Health Concerns</th>
+                <th>Plans</th>
+                <th>Consent</th>
+                <th>Joined</th>
+              </tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+          <div class="pagination">
+            <button class="page-btn" id="prevBtn" onclick="changePage(-1)">&#8592; Prev</button>
+            <span id="pageInfo">Page 1 of 1</span>
+            <button class="page-btn" id="nextBtn" onclick="changePage(1)">Next &#8594;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION: Risk Intel ── -->
+    <div class="section" id="section-risk">
+      <div class="table-card">
+        <div class="table-header">
+          <h2>Risk Scores</h2>
+          <span id="riskRefreshTime" style="font-size:12px;color:#a0aec0;"></span>
+        </div>
+        <div id="riskLoading" class="loading"><span class="spinner"></span>Loading risk data...</div>
+        <div id="riskTableWrap" style="display:none;">
+          <table>
+            <thead>
+              <tr>
+                <th>Country Code</th>
+                <th>Risk Score</th>
+                <th>Calculated At</th>
+              </tr>
+            </thead>
+            <tbody id="riskBody"></tbody>
+          </table>
+          <div class="risk-summary" id="riskSummary"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION: AI Analyst ── -->
+    <div class="section" id="section-ai">
+      <div class="ai-header">
+        <h2>AI Analyst</h2>
+        <p>Powered by Claude &mdash; comparable to LA28 Momentum Tracker's Gemini 2.5 Flash AI analyst</p>
+      </div>
+
+      <div class="ai-banner">
+        <strong>About this feature:</strong> This feature mirrors the LA28 Momentum Tracker's AI analyst.
+        LA28 uses Gemini 2.5 Flash for Olympic performance data; SafeTrax uses Claude for admin intelligence
+        and travel pattern analysis. Ask anything about your user base, travel trends, or risk patterns.
+      </div>
+
+      <div class="chip-row" id="chipRow">
+        <div class="chip" onclick="sendChip(this)">Which destinations are trending?</div>
+        <div class="chip" onclick="sendChip(this)">What health concerns are most common?</div>
+        <div class="chip" onclick="sendChip(this)">Which countries are highest risk?</div>
+        <div class="chip" onclick="sendChip(this)">How many users have active travel plans?</div>
+        <div class="chip" onclick="sendChip(this)">What patterns do you see in the user data?</div>
+      </div>
+
+      <div class="chat-window">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty" id="chatEmpty">
+            Ask a question above or use the suggested prompts to get started.
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <textarea
+            class="chat-input"
+            id="chatInput"
+            rows="2"
+            placeholder="Ask the AI analyst about your data..."
+            onkeydown="handleChatKey(event)"
+          ></textarea>
+          <button class="chat-send-btn" id="chatSendBtn" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+  const API = '';
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let statsData     = null;
+  let chartGrowth   = null;
+  let chartDests    = null;
+  let chartTransp   = null;
+  let chartHealth   = null;
+
+  let usersPage     = 1;
+  let usersTotal    = 0;
+  let usersLimit    = 25;
+  let usersSearch   = '';
+  let searchTimer   = null;
+
+  let chatHistory   = [];  // [{role, content}]
+
+  // ── Chart palette ──────────────────────────────────────────────────────────
+  const PALETTE = ['#3182ce','#63b3ed','#2c5282','#1e3a5f','#90cdf4','#bee3f8'];
+
+  // ── Nav ────────────────────────────────────────────────────────────────────
+  const SECTION_NAMES = {
+    overview: 'Overview',
+    users:    'Users',
+    risk:     'Risk Intel',
+    ai:       'AI Analyst',
+  };
+
+  document.querySelectorAll('.nav-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+      document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+      item.classList.add('active');
+      var sec = item.dataset.section;
+      document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+      document.getElementById('section-' + sec).classList.add('active');
+      document.getElementById('topbarTitle').textContent = SECTION_NAMES[sec] || sec;
+
+      if (sec === 'users' && usersTotal === 0) loadUsers();
+      if (sec === 'risk' && statsData) renderRiskTable(statsData.topRisks, statsData.kpis);
+    });
+  });
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+  });
+
+  // ── Load /api/admin/stats ──────────────────────────────────────────────────
+  function loadStats() {
+    document.getElementById('lastRefresh').textContent = 'Loading...';
+    fetch(API + '/api/admin/stats')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        statsData = data;
+        renderKPIs(data.kpis);
+        renderGrowthChart(data.userGrowth);
+        renderDestsChart(data.topDests);
+        renderTransportChart(data.transport);
+        renderHealthChart(data.healthCounts);
+        var now = new Date();
+        document.getElementById('lastRefresh').textContent =
+          'Refreshed ' + now.toLocaleTimeString();
+      })
+      .catch(function(err) {
+        document.getElementById('lastRefresh').textContent = 'Error loading stats';
+        console.error('Stats error:', err);
+      });
+  }
+
+  // ── KPIs ───────────────────────────────────────────────────────────────────
+  function renderKPIs(k) {
+    document.getElementById('kpiTotalUsers').textContent  = fmt(k.totalUsers);
+    document.getElementById('kpiConsentSub').textContent  = fmt(k.consentedUsers) + ' consented';
+    document.getElementById('kpiActivePlans').textContent = fmt(k.activePlans);
+    document.getElementById('kpiTotalPlansSub').textContent = fmt(k.totalPlans) + ' total plans';
+    document.getElementById('kpiCountries').textContent   = fmt(k.countriesTracked);
+    document.getElementById('kpiLocSub').textContent      = fmt(k.activeLocations) + ' active locations (24h)';
+    document.getElementById('kpiAlerts').textContent      = fmt((k.cdcAlerts || 0) + (k.whoAlerts || 0));
+    document.getElementById('kpiAlertSub').textContent    = fmt(k.cdcAlerts) + ' CDC · ' + fmt(k.whoAlerts) + ' WHO';
+  }
+
+  function fmt(n) {
+    if (n === null || n === undefined) return '0';
+    return Number(n).toLocaleString();
+  }
+
+  // ── Growth Chart ───────────────────────────────────────────────────────────
+  function renderGrowthChart(rows) {
+    if (!rows || rows.length === 0) {
+      document.getElementById('chartGrowth').parentElement.innerHTML =
+        '<div style="color:#a0aec0;font-size:13px;text-align:center;padding:60px 0;">No growth data in last 30 days</div>';
+      return;
+    }
+    var labels = rows.map(function(r) { return r.date; });
+    var values = rows.map(function(r) { return r.count; });
+
+    if (chartGrowth) chartGrowth.destroy();
+    chartGrowth = new Chart(document.getElementById('chartGrowth'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'New Users',
+          data: values,
+          borderColor: PALETTE[0],
+          backgroundColor: 'rgba(49,130,206,0.12)',
+          borderWidth: 2,
+          pointBackgroundColor: PALETTE[0],
+          pointRadius: 3,
+          fill: true,
+          tension: 0.3,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } },
+        },
+      },
+    });
+  }
+
+  // ── Top Destinations Chart ─────────────────────────────────────────────────
+  function renderDestsChart(rows) {
+    if (!rows || rows.length === 0) {
+      document.getElementById('chartDests').parentElement.innerHTML =
+        '<div style="color:#a0aec0;font-size:13px;text-align:center;padding:60px 0;">No destination data yet</div>';
+      return;
+    }
+    var labels = rows.map(function(r) { return r.country_code; });
+    var values = rows.map(function(r) { return r.count; });
+    var colors = labels.map(function(_, i) { return PALETTE[i % PALETTE.length]; });
+
+    if (chartDests) chartDests.destroy();
+    chartDests = new Chart(document.getElementById('chartDests'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Trips',
+          data: values,
+          backgroundColor: colors,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } },
+          y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        },
+      },
+    });
+  }
+
+  // ── Transport Chart ────────────────────────────────────────────────────────
+  function renderTransportChart(rows) {
+    if (!rows || rows.length === 0) {
+      document.getElementById('chartTransport').parentElement.innerHTML =
+        '<div style="color:#a0aec0;font-size:13px;text-align:center;padding:60px 0;">No transport data yet</div>';
+      return;
+    }
+    var labels = rows.map(function(r) { return r.transport; });
+    var values = rows.map(function(r) { return r.count; });
+    var colors = labels.map(function(_, i) { return PALETTE[i % PALETTE.length]; });
+
+    if (chartTransp) chartTransp.destroy();
+    chartTransp = new Chart(document.getElementById('chartTransport'), {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderWidth: 2,
+          borderColor: '#ffffff',
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { font: { size: 11 }, padding: 10 },
+          },
+        },
+      },
+    });
+  }
+
+  // ── Health Concerns Chart ──────────────────────────────────────────────────
+  function renderHealthChart(healthCounts) {
+    var entries = Object.entries(healthCounts || {})
+      .sort(function(a, b) { return b[1] - a[1]; })
+      .slice(0, 8);
+
+    if (entries.length === 0) {
+      document.getElementById('chartHealth').parentElement.innerHTML =
+        '<div style="color:#a0aec0;font-size:13px;text-align:center;padding:60px 0;">No health concern data yet</div>';
+      return;
+    }
+
+    var labels = entries.map(function(e) { return e[0]; });
+    var values = entries.map(function(e) { return e[1]; });
+    var colors = labels.map(function(_, i) { return PALETTE[i % PALETTE.length]; });
+
+    if (chartHealth) chartHealth.destroy();
+    chartHealth = new Chart(document.getElementById('chartHealth'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Users',
+          data: values,
+          backgroundColor: colors,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } },
+        },
+      },
+    });
+  }
+
+  // ── Users section ──────────────────────────────────────────────────────────
+  document.getElementById('userSearch').addEventListener('input', function(e) {
+    clearTimeout(searchTimer);
+    var val = e.target.value.trim();
+    searchTimer = setTimeout(function() {
+      usersSearch = val;
+      usersPage = 1;
+      loadUsers();
+    }, 350);
+  });
+
+  function loadUsers() {
+    document.getElementById('usersLoading').style.display = 'block';
+    document.getElementById('usersTableWrap').style.display = 'none';
+
+    var url = API + '/api/admin/users?page=' + usersPage + '&limit=' + usersLimit;
+    if (usersSearch) url += '&search=' + encodeURIComponent(usersSearch);
+
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        usersTotal = data.total;
+        renderUsersTable(data.users);
+        renderPagination(data.page, Math.ceil(data.total / data.limit));
+        document.getElementById('usersLoading').style.display = 'none';
+        document.getElementById('usersTableWrap').style.display = 'block';
+      })
+      .catch(function(err) {
+        document.getElementById('usersLoading').textContent = 'Error loading users: ' + err.message;
+        console.error('Users error:', err);
+      });
+  }
+
+  function renderUsersTable(users) {
+    var tbody = document.getElementById('usersBody');
+    if (!users || users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#a0aec0;padding:24px;">No users found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map(function(u) {
+      var concerns = [];
+      try { concerns = JSON.parse(u.health_concerns || '[]'); } catch(e) {}
+      var tags = concerns.map(function(c) {
+        return '<span class="tag tag-blue">' + escHtml(c) + '</span>';
+      }).join('');
+
+      var joined = u.created_at ? u.created_at.split('T')[0] : '—';
+      var consent = u.consent_signed
+        ? '<span class="consent-yes">Yes</span>'
+        : '<span class="consent-no">No</span>';
+
+      return '<tr>' +
+        '<td style="color:#a0aec0;">' + u.id + '</td>' +
+        '<td><strong>' + escHtml(u.name || '') + '</strong></td>' +
+        '<td style="color:#4a5568;">' + escHtml(u.email || '') + '</td>' +
+        '<td>' + escHtml(u.citizenship || '—') + '</td>' +
+        '<td style="text-align:center;">' + escHtml(u.blood_type || '—') + '</td>' +
+        '<td>' + (tags || '<span style="color:#a0aec0;">—</span>') + '</td>' +
+        '<td style="text-align:center;">' + (u.plan_count || 0) + '</td>' +
+        '<td style="text-align:center;">' + consent + '</td>' +
+        '<td style="color:#718096;">' + joined + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function renderPagination(page, totalPages) {
+    document.getElementById('pageInfo').textContent = 'Page ' + page + ' of ' + (totalPages || 1);
+    document.getElementById('prevBtn').disabled = page <= 1;
+    document.getElementById('nextBtn').disabled = page >= totalPages;
+  }
+
+  function changePage(delta) {
+    usersPage = Math.max(1, usersPage + delta);
+    loadUsers();
+  }
+
+  // ── Risk Intel ─────────────────────────────────────────────────────────────
+  function renderRiskTable(rows, kpis) {
+    document.getElementById('riskLoading').style.display = 'none';
+    document.getElementById('riskTableWrap').style.display = 'block';
+
+    var tbody = document.getElementById('riskBody');
+    if (!rows || rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#a0aec0;padding:24px;">No risk scores yet</td></tr>';
+    } else {
+      tbody.innerHTML = rows.map(function(r) {
+        var score = parseFloat(r.score) || 0;
+        var badgeCls = score >= 7 ? 'risk-high' : score >= 4 ? 'risk-medium' : 'risk-low';
+        var calced = r.calculated_at ? r.calculated_at.replace('T', ' ').split('.')[0] : '—';
+        return '<tr>' +
+          '<td><strong>' + escHtml(r.country_code) + '</strong></td>' +
+          '<td><span class="badge-risk ' + badgeCls + '">' + score.toFixed(1) + '</span></td>' +
+          '<td style="color:#718096;font-size:12px;">' + calced + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    var cdc = kpis ? (kpis.cdcAlerts || 0) : 0;
+    var who = kpis ? (kpis.whoAlerts || 0) : 0;
+    document.getElementById('riskSummary').textContent =
+      cdc + ' CDC alerts · ' + who + ' WHO outbreaks in database';
+
+    var now = new Date();
+    document.getElementById('riskRefreshTime').textContent =
+      'As of ' + now.toLocaleTimeString();
+  }
+
+  // ── AI Analyst Chat ────────────────────────────────────────────────────────
+  function sendChip(el) {
+    document.getElementById('chatInput').value = el.textContent;
+    sendChat();
+  }
+
+  function handleChatKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChat();
+    }
+  }
+
+  function sendChat() {
+    var input = document.getElementById('chatInput');
+    var text  = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    appendMsg('user', text);
+    chatHistory.push({ role: 'user', content: text });
+
+    document.getElementById('chatSendBtn').disabled = true;
+    var thinkingEl = appendMsg('assistant', 'Thinking...', true);
+
+    fetch(API + '/api/admin/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatHistory }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        thinkingEl.remove();
+        var reply = data.reply || 'No response';
+        appendMsg('assistant', reply);
+        chatHistory.push({ role: 'assistant', content: reply });
+      })
+      .catch(function(err) {
+        thinkingEl.remove();
+        appendMsg('assistant', 'Error: ' + err.message);
+      })
+      .finally(function() {
+        document.getElementById('chatSendBtn').disabled = false;
+      });
+  }
+
+  function appendMsg(role, text, isThinking) {
+    var container = document.getElementById('chatMessages');
+    var empty = document.getElementById('chatEmpty');
+    if (empty) empty.remove();
+
+    var div = document.createElement('div');
+    div.className = 'msg ' + (
+      isThinking ? 'msg-thinking' :
+      role === 'user' ? 'msg-user' : 'msg-assistant'
+    );
+    div.textContent = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>

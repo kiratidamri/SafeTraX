@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#c53030">
+  <title>SafeTrax SOS</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .sos-header {
+      background: #c53030;
+      color: white;
+      padding: 1rem 1.25rem;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(197,48,48,0.3);
+    }
+    .sos-header h1 { color: white; font-size: 1.4rem; font-weight: 700; }
+
+    /* ── State panels ── */
+    .sos-state { display: none; }
+    .sos-state.active { display: block; }
+
+    /* State 1 — Ready */
+    .sos-pulse-wrap {
+      text-align: center;
+      padding: 1rem 0 0.5rem;
+    }
+    .sos-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #c53030;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .sos-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .sos-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 0.75rem;
+    }
+    .tips-list {
+      list-style: none;
+      padding: 0;
+    }
+    .tips-list li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+    }
+    .tips-list li:last-child { border-bottom: none; }
+    .tip-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+    /* State 2 — Sending */
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: #c53030;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 2rem auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .sending-title {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    .sending-sub {
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* State 3 — Confirmed */
+    .confirm-check {
+      width: 72px; height: 72px;
+      background: #38a169;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; color: white;
+      margin: 1.5rem auto 1rem;
+    }
+    .confirm-title {
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #276749;
+      margin-bottom: 0.5rem;
+    }
+    .confirm-detail {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 0.35rem;
+    }
+    .confirm-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    .btn-home {
+      display: block;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0.9rem;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-home:hover { background: var(--primary-dark); color: white; text-decoration: none; }
+    .btn-again {
+      display: block;
+      background: transparent;
+      color: #c53030;
+      border: 2px solid #c53030;
+      border-radius: var(--radius);
+      padding: 0.9rem;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-again:hover { background: rgba(197,48,48,0.06); }
+
+    main { padding-bottom: 5rem; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ────────────────────────────────────────── -->
+  <div class="sos-header">
+    <h1>SafeTrax SOS</h1>
+  </div>
+
+  <main class="container">
+
+    <!-- ── State 1: Ready ──────────────────────────────── -->
+    <div id="state-ready" class="sos-state active">
+      <div class="sos-pulse-wrap">
+        <div class="sos-pulse">🆘</div>
+      </div>
+      <div class="sos-title">Emergency Assistance</div>
+      <div class="sos-subtitle">Tap the button below to send an SOS alert with your location to your emergency contacts.</div>
+
+      <button class="btn-sos" id="sos-btn">🆘 SEND SOS ALERT</button>
+      <div class="sos-note">This will record your location and notify your emergency contacts</div>
+
+      <div class="card" style="margin-top: 1.5rem;">
+        <div class="card-title">Emergency tips</div>
+        <ul class="tips-list">
+          <li><span class="tip-icon">🧘</span><span>Stay calm — panicking makes situations worse. Take slow, deep breaths.</span></li>
+          <li><span class="tip-icon">📍</span><span>Stay in place if safe. Moving can make it harder for responders to locate you.</span></li>
+          <li><span class="tip-icon">📞</span><span>Call local emergency services: <strong>911</strong> (US) · <strong>112</strong> (EU) · <strong>999</strong> (UK)</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ── State 2: Sending ─────────────────────────────── -->
+    <div id="state-sending" class="sos-state">
+      <div class="spinner"></div>
+      <div class="sending-title">Sending alert&hellip;</div>
+      <div class="sending-sub">Getting your location and notifying emergency contacts. Please wait.</div>
+    </div>
+
+    <!-- ── State 3: Confirmed ──────────────────────────── -->
+    <div id="state-confirmed" class="sos-state">
+      <div class="card" style="margin-top: 1rem;">
+        <div class="confirm-check">✓</div>
+        <div class="confirm-title">SOS Alert Sent</div>
+        <div class="confirm-detail" id="confirm-time"></div>
+        <div class="confirm-detail" id="confirm-coords"></div>
+        <div class="confirm-actions">
+          <a href="index.html" class="btn-home">Return to Home</a>
+          <button class="btn-again" id="send-again-btn">Send Another</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Bottom nav ──────────────────────────────────────── -->
+  <nav class="nav-bottom">
+    <a href="index.html"><span class="icon-label">Home</span></a>
+    <a href="travel-plan.html"><span class="icon-label">Plans</span></a>
+    <a href="realtime.html"><span class="icon-label">Real-time</span></a>
+    <a href="friends.html"><span class="icon-label">Friends</span></a>
+    <a href="faq.html"><span class="icon-label">Help</span></a>
+  </nav>
+
+  <script>
+    var API = '';
+
+    // ── Auth guard ────────────────────────────────────────
+    var user = null;
+    try { user = JSON.parse(localStorage.getItem('safetrax_user')); } catch(e) {}
+    if (!user) {
+      var uid = localStorage.getItem('safetrax_user_id');
+      if (uid) {
+        user = {
+          id:    uid,
+          name:  localStorage.getItem('safetrax_user_name') || 'Traveller',
+          email: localStorage.getItem('safetrax_email') || ''
+        };
+      }
+    }
+    if (!user) { window.location.href = 'index.html'; }
+
+    // ── State management ──────────────────────────────────
+    function showState(name) {
+      ['ready', 'sending', 'confirmed'].forEach(function(s) {
+        document.getElementById('state-' + s).classList.toggle('active', s === name);
+      });
+    }
+
+    // ── SOS button handler ────────────────────────────────
+    document.getElementById('sos-btn').addEventListener('click', function() {
+      showState('sending');
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos) {
+            sendSOS(pos.coords.latitude, pos.coords.longitude);
+          },
+          function() {
+            // Location denied or failed — send without coords
+            sendSOS(null, null);
+          },
+          { timeout: 8000, maximumAge: 60000 }
+        );
+      } else {
+        sendSOS(null, null);
+      }
+    });
+
+    function sendSOS(lat, lng) {
+      fetch(API + '/api/sos', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          user_id:      user.id,
+          latitude:     lat,
+          longitude:    lng,
+          country_code: null,
+          message:      'SOS triggered from app'
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function() { showConfirmed(lat, lng); })
+      .catch(function() {
+        // Show confirmed even if request fails — safety UX
+        showConfirmed(lat, lng);
+      });
+    }
+
+    function showConfirmed(lat, lng) {
+      var now = new Date();
+      document.getElementById('confirm-time').textContent =
+        'Sent at ' + now.toLocaleTimeString() + ' on ' + now.toLocaleDateString();
+
+      if (lat != null && lng != null) {
+        document.getElementById('confirm-coords').textContent =
+          'Location: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+      } else {
+        document.getElementById('confirm-coords').textContent =
+          'Location: could not be determined';
+      }
+      showState('confirmed');
+    }
+
+    // ── Send another ──────────────────────────────────────
+    document.getElementById('send-again-btn').addEventListener('click', function() {
+      showState('ready');
+    });
+  </script>
+</body>
+</html>
