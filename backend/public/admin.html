@@ -4,26 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SafeTrax Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --primary:   #1e3a5f;
-      --accent:    #3182ce;
-      --bg:        #f0f4f8;
+      --primary:   #548AB8;
+      --accent:    #4a8fc4;
+      --bg:        #f0f5f9;
       --card-bg:   #ffffff;
       --sidebar-w: 220px;
-      --blue-1:    #3182ce;
-      --blue-2:    #63b3ed;
-      --blue-3:    #2c5282;
-      --blue-4:    #1e3a5f;
-      --blue-5:    #90cdf4;
-      --blue-6:    #bee3f8;
+      --blue-1:    #4a8fc4;
+      --blue-2:    #6fa3cc;
+      --blue-3:    #3a6a95;
+      --blue-4:    #548AB8;
+      --blue-5:    #a8cce4;
+      --blue-6:    #d6e4f0;
     }
 
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: #2d3748;
       display: flex;
@@ -267,7 +269,7 @@
       font-weight: 600;
       margin: 2px 2px 2px 0;
     }
-    .tag-blue  { background: #ebf8ff; color: #2b6cb0; }
+    .tag-blue  { background: #e8f2fa; color: #3a6a95; }
     .tag-green { background: #f0fff4; color: #276749; }
     .tag-red   { background: #fff5f5; color: #c53030; }
     .tag-gray  { background: #edf2f7; color: #4a5568; }
@@ -344,7 +346,7 @@
       border-radius: 8px;
       padding: 12px 16px;
       font-size: 13px;
-      color: #2b6cb0;
+      color: #3a6a95;
       margin-bottom: 20px;
       line-height: 1.5;
     }
@@ -740,7 +742,7 @@
   let chatHistory   = [];  // [{role, content}]
 
   // ── Chart palette ──────────────────────────────────────────────────────────
-  const PALETTE = ['#3182ce','#63b3ed','#2c5282','#1e3a5f','#90cdf4','#bee3f8'];
+  const PALETTE = ['#548AB8','#6fa3cc','#3a6a95','#4a8fc4','#a8cce4','#d6e4f0'];
 
   // ── Nav ────────────────────────────────────────────────────────────────────
   const SECTION_NAMES = {
