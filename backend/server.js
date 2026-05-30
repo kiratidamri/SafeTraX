@@ -40,8 +40,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Database setup ──────────────────────────────────────────────────────────
-const DB_PATH     = path.join(__dirname, '../database/safetrax.db');
-const SCHEMA_PATH = path.join(__dirname, '../database/schema.sql');
+const DB_PATH     = process.env.DB_PATH || path.join(__dirname, '../database/safetrax.db');
+const SCHEMA_PATH = process.env.SCHEMA_PATH || path.join(__dirname, '../database/schema.sql');
 
 const db = new DatabaseSync(DB_PATH);
 db.exec('PRAGMA journal_mode = WAL');

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: safetrax
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false        # you paste this in the Render dashboard
+      - key: NEWS_API_KEY
+        sync: false        # optional
+    autoDeploy: true       # redeploys whenever you push to main
