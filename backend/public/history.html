@@ -7,6 +7,35 @@
   <title>SafeTrax – Trip History</title>
   <link rel="stylesheet" href="styles.css">
   <style>
+    /* ── Stats strip ── */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+    .stat-cell {
+      padding: 0.9rem 0.5rem;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .stat-cell:last-child { border-right: none; }
+    .stat-num {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+    .stat-lbl {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
     /* ── Tabs ── */
     .tab-bar {
       display: flex;
@@ -34,38 +63,150 @@
       border-bottom-color: var(--primary);
     }
 
-    /* ── Trip detail bottom sheet ── */
-    .trip-item { cursor: pointer; }
+    /* ── Trip cards ── */
+    .trip-item {
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 0;
+    }
+    .trip-item:last-child { border-bottom: none; }
+
+    .trip-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .trip-icon {
+      font-size: 1.4rem;
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .trip-info { flex: 1; min-width: 0; }
+    .trip-dests {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .trip-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.25rem;
+      flex-wrap: wrap;
+    }
+    .trip-dates {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .trip-duration {
+      font-size: 0.78rem;
+      background: #e8f2fa;
+      color: var(--primary);
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .trip-status {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .status-active    { background: #c6f6d5; color: #22543d; }
+    .status-completed { background: #e8f2fa; color: #3a6a95; }
+    .status-cancelled { background: #fed7d7; color: #822727; }
+
+    .trip-flags {
+      font-size: 1.1rem;
+      letter-spacing: 2px;
+      margin-top: 0.2rem;
+    }
+
+    .trip-chevron {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      padding-top: 3px;
+    }
+    .trip-item.expanded .trip-chevron { transform: rotate(90deg); }
+
+    /* ── Detail panel ── */
     .trip-detail {
       display: none;
-      background: rgba(84, 138, 184, 0.04);
-      border-radius: 0 0 var(--radius) var(--radius);
-      padding: 0.75rem 0.5rem 0.5rem;
-      margin-top: 0.35rem;
-      border-top: 1px solid var(--border);
+      margin-top: 0.75rem;
     }
     .trip-item.expanded .trip-detail { display: block; }
-    .trip-detail-label {
-      font-size: 0.78rem;
+
+    .detail-section-title {
+      font-size: 0.72rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       color: var(--text-muted);
-      margin-bottom: 0.35rem;
+      margin: 0.75rem 0 0.4rem;
     }
-    .trip-dest-list {
-      list-style: none;
-      padding: 0;
+    .detail-section-title:first-child { margin-top: 0; }
+
+    /* Per-destination card */
+    .dest-card {
+      background: #f4f8fc;
+      border-radius: 8px;
+      padding: 0.7rem 0.85rem;
+      margin-bottom: 0.5rem;
+      border: 1px solid #dce8f4;
     }
-    .trip-dest-list li {
-      font-size: 0.9rem;
-      color: var(--primary);
-      padding: 0.2rem 0;
+    .dest-card:last-child { margin-bottom: 0; }
+    .dest-card-head {
       display: flex;
       align-items: center;
       gap: 0.4rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--primary);
+      margin-bottom: 0.4rem;
     }
-    .trip-dest-list li::before { content: '📍'; font-size: 0.85rem; }
+    .dest-flag { font-size: 1.15rem; }
+    .dest-info-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    .dest-info-row .di-icon { font-size: 0.85rem; }
+    .dest-info-row strong { color: var(--text); font-weight: 600; }
+
+    /* Action row */
+    .trip-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+    }
+    .trip-btn {
+      flex: 1;
+      padding: 0.55rem 0.5rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid var(--primary);
+      background: transparent;
+      color: var(--primary);
+      transition: background 0.15s, color 0.15s;
+    }
+    .trip-btn:hover { background: var(--primary); color: #fff; }
+    .trip-btn.primary-btn {
+      background: var(--primary);
+      color: #fff;
+    }
+    .trip-btn.primary-btn:hover { background: #3a6a95; }
 
     .trip-empty {
       text-align: center;
@@ -85,13 +226,28 @@
 </head>
 <body>
 
-  <!-- ── Header ────────────────────────────────────────── -->
   <header class="app-header">
     <h1>SafeTrax</h1>
     <p style="font-size: 0.9rem; opacity: 0.95;">Trip History</p>
   </header>
 
-  <!-- ── Tabs ──────────────────────────────────────────── -->
+  <!-- Stats strip -->
+  <div class="stats-strip" id="statsStrip" style="display:none;">
+    <div class="stat-cell">
+      <div class="stat-num" id="statTrips">0</div>
+      <div class="stat-lbl">Trips</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" id="statCountries">0</div>
+      <div class="stat-lbl">Countries</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" id="statDays">0</div>
+      <div class="stat-lbl">Days traveled</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="all">All</button>
     <button class="tab-btn" data-tab="active">Active</button>
@@ -105,7 +261,6 @@
     </div>
   </main>
 
-  <!-- ── Bottom nav ──────────────────────────────────────── -->
   <nav class="nav-bottom">
     <a href="index.html"><span class="icon-label">Home</span></a>
     <a href="travel-plan.html"><span class="icon-label">Plans</span></a>
@@ -117,135 +272,200 @@
   <script>
     var API = '';
 
-    // ── Auth guard ────────────────────────────────────────
+    // ── Auth guard ──────────────────────────────────────────
     var user = null;
     try { user = JSON.parse(localStorage.getItem('safetrax_user')); } catch(e) {}
     if (!user) {
       var uid = localStorage.getItem('safetrax_user_id');
-      if (uid) {
-        user = {
-          id:    uid,
-          name:  localStorage.getItem('safetrax_user_name') || 'Traveller',
-          email: localStorage.getItem('safetrax_email') || ''
-        };
-      }
+      if (uid) user = { id: uid, name: localStorage.getItem('safetrax_user_name') || 'Traveller', email: '' };
     }
-    if (!user) { window.location.href = 'index.html'; }
+    if (!user) window.location.href = 'index.html';
 
-    // ── Transport icons ───────────────────────────────────
-    var TRANSPORT_ICON = {
-      air:    '✈',
-      train:  '🚂',
-      bus:    '🚌',
-      cruise: '🚢',
-      car:    '🚗',
-      other:  '🚀'
-    };
+    // ── Helpers ─────────────────────────────────────────────
+    var TRANSPORT_ICON = { air:'✈', train:'🚂', bus:'🚌', cruise:'🚢', car:'🚗', other:'🚀' };
 
-    // ── Status class helper ───────────────────────────────
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function flag(cc) {
+      if (!cc || cc.length !== 2) return '';
+      return String.fromCodePoint(
+        0x1F1E6 + cc.toUpperCase().charCodeAt(0) - 65,
+        0x1F1E6 + cc.toUpperCase().charCodeAt(1) - 65
+      );
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function daysBetween(start, end) {
+      if (!start || !end) return null;
+      var ms = new Date(end + 'T00:00:00') - new Date(start + 'T00:00:00');
+      return Math.max(1, Math.round(ms / 86400000));
+    }
+
     function statusClass(s) {
       if (s === 'active')    return 'status-active';
-      if (s === 'completed') return 'status-completed';
       if (s === 'cancelled') return 'status-cancelled';
       return 'status-completed';
     }
 
     function statusLabel(s) {
-      if (!s) return 'Unknown';
+      if (!s) return 'Completed';
       return s.charAt(0).toUpperCase() + s.slice(1);
     }
 
-    // ── Format date range ─────────────────────────────────
-    function formatDate(iso) {
-      if (!iso) return '';
-      var d = new Date(iso + 'T00:00:00');
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    // ── Build route string from plan ─────────────────────
-    function buildRoute(plan) {
-      if (plan.route && plan.route !== 'null') return plan.route;
-      return 'Trip #' + plan.id;
-    }
-
-    // ── Parse destinations from route string ──────────────
-    function parseDestinations(routeStr) {
-      if (!routeStr || routeStr === 'null') return [];
-      return routeStr.split(' → ').map(function(s) { return s.trim(); }).filter(Boolean);
-    }
-
-    // ── Render one trip item ──────────────────────────────
+    // ── Render one trip ─────────────────────────────────────
     function renderTrip(plan) {
-      var route = buildRoute(plan);
-      var dests = parseDestinations(route);
       var transport = plan.transport || 'other';
-      var icon  = TRANSPORT_ICON[transport] || '🚀';
-      var status = plan.status || 'completed';
+      var icon      = TRANSPORT_ICON[transport] || '🚀';
+      var status    = plan.status || 'completed';
+      var days      = daysBetween(plan.date_start, plan.date_end);
+      var dests     = plan.destinations || [];
+
+      // Build flag string from destinations
+      var seenCC = {};
+      var flags  = dests.filter(function(d) {
+        if (!d.country_code || seenCC[d.country_code]) return false;
+        seenCC[d.country_code] = true;
+        return true;
+      }).map(function(d) { return flag(d.country_code); }).join(' ');
+
+      // Route label
+      var route = plan.route && plan.route !== 'null'
+        ? plan.route
+        : (dests.length ? dests.map(function(d) { return (d.city || d.country_code); }).join(' → ') : 'Trip #' + plan.id);
+
+      // Per-destination detail cards
+      var destCardsHtml = dests.map(function(d) {
+        var hotelHtml = (d.hotel_name)
+          ? '<div class="dest-info-row"><span class="di-icon">🏨</span> <strong>' + esc(d.hotel_name) + '</strong>' +
+            (d.hotel_booking ? ' <span style="color:#a0aec0;font-size:0.78rem;">· ' + esc(d.hotel_booking) + '</span>' : '') + '</div>'
+          : '';
+        var flightHtml = (d.airline || d.flight_number)
+          ? '<div class="dest-info-row"><span class="di-icon">✈</span> <strong>' +
+            esc((d.airline || '') + (d.flight_number ? ' ' + d.flight_number : '')) + '</strong>' +
+            (d.depart_airport && d.arrive_airport
+              ? ' <span style="color:#a0aec0;font-size:0.78rem;">· ' + esc(d.depart_airport) + ' → ' + esc(d.arrive_airport) + '</span>'
+              : '') + '</div>'
+          : '';
+
+        return '<div class="dest-card">' +
+          '<div class="dest-card-head">' +
+            '<span class="dest-flag">' + flag(d.country_code) + '</span>' +
+            esc(d.city || d.country_code || '—') +
+            (d.country_code && d.city ? ' <span style="font-weight:400;color:var(--text-muted);font-size:0.82rem;">(' + esc(d.country_code) + ')</span>' : '') +
+          '</div>' +
+          (hotelHtml || flightHtml
+            ? (hotelHtml + flightHtml)
+            : '<div class="dest-info-row" style="color:#c0cde0;font-style:italic;">No hotel or flight recorded</div>'
+          ) +
+        '</div>';
+      }).join('');
+
+      if (!destCardsHtml) {
+        var parts = route.split(' → ');
+        destCardsHtml = parts.map(function(p) {
+          return '<div class="dest-card"><div class="dest-card-head">' + esc(p.trim()) + '</div>' +
+            '<div class="dest-info-row" style="color:#c0cde0;font-style:italic;">No hotel or flight recorded</div></div>';
+        }).join('');
+      }
 
       var item = document.createElement('div');
       item.className = 'trip-item';
-
-      // Destination list for detail panel
-      var destListHtml = dests.map(function(d) {
-        return '<li>' + esc(d) + '</li>';
-      }).join('');
-      if (!destListHtml) {
-        destListHtml = '<li>' + esc(route) + '</li>';
-      }
-
       item.innerHTML =
-        '<div class="trip-header">' +
-          '<div class="trip-dests">' + esc(route) + '</div>' +
-          '<span class="trip-status ' + statusClass(status) + '">' + statusLabel(status) + '</span>' +
-        '</div>' +
-        '<div class="trip-dates">' + formatDate(plan.date_start) + ' &ndash; ' + formatDate(plan.date_end) + '</div>' +
-        '<div class="trip-meta">' +
-          '<span>' + icon + ' ' + esc(transport.charAt(0).toUpperCase() + transport.slice(1)) + '</span>' +
+        '<div class="trip-top">' +
+          '<span class="trip-icon">' + icon + '</span>' +
+          '<div class="trip-info">' +
+            '<div class="trip-dests">' + esc(route) + '</div>' +
+            (flags ? '<div class="trip-flags">' + flags + '</div>' : '') +
+            '<div class="trip-meta-row">' +
+              '<span class="trip-dates">' + formatDate(plan.date_start) + ' – ' + formatDate(plan.date_end) + '</span>' +
+              (days ? '<span class="trip-duration">' + days + 'd</span>' : '') +
+              '<span class="trip-status ' + statusClass(status) + '">' + statusLabel(status) + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<span class="trip-chevron">▶</span>' +
         '</div>' +
         '<div class="trip-detail">' +
-          '<div class="trip-detail-label">Destinations</div>' +
-          '<ul class="trip-dest-list">' + destListHtml + '</ul>' +
+          '<div class="detail-section-title">Destinations</div>' +
+          destCardsHtml +
+          '<div class="trip-actions">' +
+            '<button class="trip-btn" onclick="shareTrip(event,' + plan.id + ')">Share</button>' +
+            '<button class="trip-btn primary-btn" onclick="planAgain(event,' + JSON.stringify(plan.date_start) + ',' + JSON.stringify(plan.transport || '') + ')">Plan again</button>' +
+          '</div>' +
         '</div>';
 
-      // Toggle detail expand on tap
-      item.addEventListener('click', function() {
+      item.addEventListener('click', function(e) {
+        if (e.target.tagName === 'BUTTON') return;
         item.classList.toggle('expanded');
       });
 
       return item;
     }
 
-    // ── Tab state ─────────────────────────────────────────
+    // ── Actions ─────────────────────────────────────────────
+    function shareTrip(e, planId) {
+      e.stopPropagation();
+      var url = window.location.origin + '/recommendation.html?plan_id=' + planId;
+      if (navigator.share) {
+        navigator.share({ title: 'My SafeTrax Trip', url: url });
+      } else {
+        navigator.clipboard.writeText(url).then(function() {
+          alert('Link copied to clipboard!');
+        }).catch(function() {
+          alert('Share link: ' + url);
+        });
+      }
+    }
+
+    function planAgain(e, lastStart, transport) {
+      e.stopPropagation();
+      window.location.href = 'travel-plan.html';
+    }
+
+    // ── Stats ────────────────────────────────────────────────
+    function renderStats(plans) {
+      var countries = {};
+      var totalDays = 0;
+      plans.forEach(function(p) {
+        (p.destinations || []).forEach(function(d) {
+          if (d.country_code) countries[d.country_code] = true;
+        });
+        var d = daysBetween(p.date_start, p.date_end);
+        if (d) totalDays += d;
+      });
+      document.getElementById('statTrips').textContent     = plans.length;
+      document.getElementById('statCountries').textContent = Object.keys(countries).length;
+      document.getElementById('statDays').textContent      = totalDays;
+      document.getElementById('statsStrip').style.display  = 'grid';
+    }
+
+    // ── Tab state ────────────────────────────────────────────
     var currentTab = 'all';
     var allPlans   = [];
 
     function filterPlans(tab) {
-      if (tab === 'all')       return allPlans;
       if (tab === 'active')    return allPlans.filter(function(p) { return p.status === 'active'; });
-      if (tab === 'completed') return allPlans.filter(function(p) { return p.status === 'completed' || !p.status; });
+      if (tab === 'completed') return allPlans.filter(function(p) { return p.status !== 'active'; });
       return allPlans;
     }
 
-    function emptyMsg(tab) {
-      if (tab === 'active')    return 'No active trips';
-      if (tab === 'completed') return 'No completed trips';
-      return 'No trips yet';
-    }
-
     function renderList(tab) {
-      var list = document.getElementById('trip-list');
+      var list  = document.getElementById('trip-list');
       list.innerHTML = '';
       var plans = filterPlans(tab);
       if (plans.length === 0) {
-        list.innerHTML = '<div class="trip-empty">' + emptyMsg(tab) + '</div>';
+        var msgs = { active: 'No active trips', completed: 'No completed trips', all: 'No trips yet — start planning!' };
+        list.innerHTML = '<div class="trip-empty">' + (msgs[tab] || 'No trips') + '</div>';
         return;
       }
-      plans.forEach(function(p) {
-        list.appendChild(renderTrip(p));
-      });
+      plans.forEach(function(p) { list.appendChild(renderTrip(p)); });
     }
 
-    // ── Tab buttons ───────────────────────────────────────
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -255,29 +475,19 @@
       });
     });
 
-    // ── Load trips ────────────────────────────────────────
-    function loadTrips() {
-      fetch(API + '/api/trips?user_id=' + encodeURIComponent(user.id))
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          document.getElementById('trip-loading').style.display = 'none';
-          document.getElementById('trip-card').style.display = 'block';
-          allPlans = data.plans || [];
-          renderList(currentTab);
-        })
-        .catch(function() {
-          document.getElementById('trip-loading').textContent =
-            'Could not load trips. Is the backend running?';
-        });
-    }
-
-    function esc(s) {
-      return String(s)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    loadTrips();
+    // ── Load ─────────────────────────────────────────────────
+    fetch(API + '/api/trips?user_id=' + encodeURIComponent(user.id))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        document.getElementById('trip-loading').style.display = 'none';
+        document.getElementById('trip-card').style.display = 'block';
+        allPlans = data.plans || [];
+        renderStats(allPlans);
+        renderList(currentTab);
+      })
+      .catch(function() {
+        document.getElementById('trip-loading').textContent = 'Could not load trips. Is the backend running?';
+      });
   </script>
 </body>
 </html>
