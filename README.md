@@ -13,6 +13,7 @@ A mobile-first travel safety web app that gives travelers real-time risk intelli
 - **Real-time risk dashboard** — live weather, food/water/air safety, civil unrest, and disaster alerts on a map
 - **AI chatbot** — context-aware assistant (Claude Haiku) that knows your active travel plans, citizenship, and health profile
 - **SOS alert** — one-tap emergency broadcast with GPS coordinates
+- **Document vault** — upload and manage passport, visa, and medical documents; expiry tracking and health-profile cross-check
 - **Trip history** — full archive of past and active plans with hotel/flight details
 - **Notifications** — in-app alert feed
 
@@ -20,6 +21,7 @@ A mobile-first travel safety web app that gives travelers real-time risk intelli
 - **Overview dashboard** — 8 KPI cards, 10 charts (user growth, top destinations, transport modes, health concerns, age distribution, travel frequency, traveler type, travel purpose, vaccination coverage, top airlines)
 - **Travel Plans table** — all plans with traveler info, route, hotel, flight, status; searchable & paginated
 - **Users table** — searchable/paginated user registry with health tags, consent status, plan count
+- **Documents dashboard** — KPIs for total uploads, passport/visa coverage, and documents expiring within 90 days; breakdown chart by type
 - **Risk Intel** — country risk scores from the live database
 - **AI Analyst** — Claude-powered chat trained on live database stats for trend analysis
 
@@ -65,6 +67,7 @@ safetrax/
 │       ├── friends.html       # Contacts
 │       ├── faq.html           # Help / FAQ
 │       ├── admin.html         # Admin dashboard
+│       ├── documents.html     # User document vault (passport, visa, medical)
 │       └── styles.css         # Shared design system
 └── database/
     ├── schema.sql         # Table definitions
@@ -135,6 +138,11 @@ Admin dashboard: `http://localhost:3000/admin.html`
 | GET | `/api/admin/users` | Paginated/searchable user list |
 | GET | `/api/admin/plans` | Paginated/searchable travel plans list |
 | POST | `/api/admin/chat` | Admin AI analyst (Claude Opus) |
+| POST | `/api/documents` | Upload a document (passport, visa, medical) as base64 |
+| GET | `/api/documents` | List user's documents (metadata only) |
+| GET | `/api/documents/:id/file` | Download a specific document file |
+| DELETE | `/api/documents/:id` | Delete a document |
+| GET | `/api/documents/verify` | Verify document completeness and cross-check health profile |
 
 ---
 
