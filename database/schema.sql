@@ -160,10 +160,12 @@ CREATE TABLE IF NOT EXISTS risk_scores (
   cdc_component       REAL    NOT NULL,  -- 0–10, weighted input
   who_component       REAL    NOT NULL,
   news_component      REAL    NOT NULL,
+  aqi_component       REAL    NOT NULL DEFAULT 0, -- 0–10, WAQI air quality index
   base_component      REAL    NOT NULL,
   cdc_notices_json    TEXT,              -- JSON snapshot of matched CDC notices
   who_outbreaks_json  TEXT,              -- JSON snapshot of matched WHO outbreaks
   news_items_json     TEXT,              -- JSON snapshot of top 5 news items
+  air_quality_json    TEXT,              -- JSON snapshot of WAQI result
   calculated_at       TEXT    NOT NULL DEFAULT (datetime('now')),
   expires_at          TEXT    NOT NULL   -- set to +1 hour from calculated_at
 );
@@ -240,3 +242,28 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user   ON notifications(user_id, re
 CREATE INDEX IF NOT EXISTS idx_audit_user           ON audit_log(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_token       ON user_sessions(token);
 CREATE INDEX IF NOT EXISTS idx_sos_user             ON sos_events(user_id, status);
+
+-- ─────────────────────────────────────────────
+-- TRAVEL DOCUMENTS (passport, visa, medical)
+-- Files stored as base64 text; metadata indexed for fast compliance checks.
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS travel_documents (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL,
+  doc_type     TEXT    NOT NULL,  -- passport | visa | medical
+  doc_subtype  TEXT,              -- visa: tourist|business|student|work|transit
+                                  -- medical: vaccination|checkup|allergy|prescription
+  country_code TEXT,              -- passport: issuing country; visa: destination country
+  file_name    TEXT    NOT NULL,
+  file_data    TEXT    NOT NULL,  -- base64-encoded file content (max ~5 MB raw)
+  file_mime    TEXT,              -- e.g. image/jpeg, application/pdf
+  issued_at    TEXT,              -- ISO date YYYY-MM-DD
+  expires_at   TEXT,              -- ISO date; NULL for non-expiring docs
+  notes        TEXT,
+  visa_required INTEGER NOT NULL DEFAULT 0,  -- 1 = user confirmed this destination requires a visa
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_documents_user ON travel_documents(user_id, doc_type);

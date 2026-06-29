@@ -511,6 +511,9 @@
     <div class="nav-item" data-section="plans">
       <span class="nav-icon">&#9992;</span> Travel Plans
     </div>
+    <div class="nav-item" data-section="documents">
+      <span class="nav-icon">&#128196;</span> Documents
+    </div>
     <div class="nav-item" data-section="ai">
       <span class="nav-icon">&#129302;</span> AI Analyst
     </div>
@@ -733,6 +736,67 @@
       </div>
     </div>
 
+    <!-- ── SECTION: Documents ── -->
+    <div class="section" id="section-documents">
+      <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Documents</div>
+          <div class="kpi-value" id="dkpiTotal">—</div>
+          <div class="kpi-sub" id="dkpiTotalSub">uploaded by users</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Users with Passport</div>
+          <div class="kpi-value" id="dkpiPassport">—</div>
+          <div class="kpi-sub">passport on file</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Users with Visa</div>
+          <div class="kpi-value" id="dkpiVisa">—</div>
+          <div class="kpi-sub">visa on file</div>
+        </div>
+        <div class="kpi-card" style="border-top-color:#dd6b20;">
+          <div class="kpi-label">Expiring (90 days)</div>
+          <div class="kpi-value" id="dkpiExpiring" style="color:#dd6b20;">—</div>
+          <div class="kpi-sub" id="dkpiExpiredSub">— already expired</div>
+        </div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">Documents by Type</div>
+          <div class="chart-wrap"><canvas id="docTypeChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Top Destinations — Visa Required</div>
+          <div class="chart-wrap"><canvas id="visaReqChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <h2>Recent Document Uploads</h2>
+          <span style="font-size:12px;color:#a0aec0;" id="docTableMeta"></span>
+        </div>
+        <div id="docTableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>User</th>
+                <th>Type</th>
+                <th>Subtype</th>
+                <th>Country</th>
+                <th>Expires</th>
+                <th>Visa Required?</th>
+                <th>Uploaded</th>
+              </tr>
+            </thead>
+            <tbody id="docTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ── SECTION: AI Analyst ── -->
     <div class="section" id="section-ai">
       <div class="ai-header">
@@ -805,11 +869,12 @@
 
   // ── Nav ────────────────────────────────────────────────────────────────────
   const SECTION_NAMES = {
-    overview: 'Overview',
-    users:    'Users',
-    plans:    'Travel Plans',
-    risk:     'Risk Intel',
-    ai:       'AI Analyst',
+    overview:  'Overview',
+    users:     'Users',
+    plans:     'Travel Plans',
+    risk:      'Risk Intel',
+    documents: 'Documents',
+    ai:        'AI Analyst',
   };
 
   document.querySelectorAll('.nav-item').forEach(function(item) {
@@ -821,9 +886,10 @@
       document.getElementById('section-' + sec).classList.add('active');
       document.getElementById('topbarTitle').textContent = SECTION_NAMES[sec] || sec;
 
-      if (sec === 'users' && usersTotal === 0) loadUsers();
-      if (sec === 'plans' && plansTotal === 0) loadPlans();
-      if (sec === 'risk' && statsData) renderRiskTable(statsData.topRisks, statsData.kpis);
+      if (sec === 'users'     && usersTotal === 0) loadUsers();
+      if (sec === 'plans'     && plansTotal === 0) loadPlans();
+      if (sec === 'risk'      && statsData) renderRiskTable(statsData.topRisks, statsData.kpis);
+      if (sec === 'documents' && statsData) renderDocStats(statsData);
     });
   });
 
@@ -846,6 +912,8 @@
         renderTransportChart(data.transport);
         renderHealthChart(data.healthCounts);
         renderNewCharts(data);
+        // pre-populate doc stats so switching to Documents tab is instant
+        renderDocStats(data);
         var now = new Date();
         document.getElementById('lastRefresh').textContent =
           'Refreshed ' + now.toLocaleTimeString();
@@ -1375,6 +1443,99 @@
   function changePlanPage(delta) {
     plansPage = Math.max(1, plansPage + delta);
     loadPlans();
+  }
+
+  // ── Documents section ──────────────────────────────────────────────────────
+  var docTypeChartInst = null;
+  var visaReqChartInst = null;
+
+  function renderDocStats(data) {
+    // KPIs
+    document.getElementById('dkpiTotal').textContent    = fmt(data.totalDocs || 0);
+    document.getElementById('dkpiTotalSub').textContent = 'across all users';
+    document.getElementById('dkpiPassport').textContent = fmt(data.usersWithPassport || 0);
+    document.getElementById('dkpiVisa').textContent     = fmt(data.usersWithVisa || 0);
+    document.getElementById('dkpiExpiring').textContent = fmt(data.expiringSoonDocs || 0);
+    document.getElementById('dkpiExpiredSub').textContent = fmt(data.expiredDocs || 0) + ' already expired';
+
+    // Doc type doughnut
+    if (data.docsByType && data.docsByType.length) {
+      var typeLabels = { passport: 'Passport', visa: 'Visa', medical: 'Medical' };
+      var dLabels = data.docsByType.map(function(r) { return typeLabels[r.doc_type] || r.doc_type; });
+      var dValues = data.docsByType.map(function(r) { return r.count; });
+      if (docTypeChartInst) docTypeChartInst.destroy();
+      docTypeChartInst = new Chart(document.getElementById('docTypeChart'), {
+        type: 'doughnut',
+        data: {
+          labels: dLabels,
+          datasets: [{ data: dValues, backgroundColor: ['#548AB8','#38a169','#dd6b20'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } } } }
+      });
+    } else {
+      document.getElementById('docTypeChart').parentElement.innerHTML =
+        '<div style="color:#a0aec0;font-size:13px;text-align:center;padding:60px 0;">No documents uploaded yet</div>';
+    }
+
+    // Visa-required destinations bar
+    if (data.visaRequiredDests && data.visaRequiredDests.length) {
+      if (visaReqChartInst) visaReqChartInst.destroy();
+      visaReqChartInst = new Chart(document.getElementById('visaReqChart'), {
+        type: 'bar',
+        data: {
+          labels: data.visaRequiredDests.map(function(r) { return r.country_code; }),
+          datasets: [{
+            label: 'Users who confirmed visa required',
+            data: data.visaRequiredDests.map(function(r) { return r.count; }),
+            backgroundColor: '#dd6b20', borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, ticks: { precision: 0 } }, y: { grid: { display: false } } }
+        }
+      });
+    } else {
+      document.getElementById('visaReqChart').parentElement.innerHTML =
+        '<div style="color:#a0aec0;font-size:13px;text-align:center;padding:60px 0;">No visa-required confirmations yet</div>';
+    }
+
+    // Recent docs table
+    document.getElementById('docTableMeta').textContent = 'Showing last 20 uploads';
+    var tbody = document.getElementById('docTableBody');
+    if (!data.recentDocs || !data.recentDocs.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a0aec0;padding:24px;">No documents uploaded yet</td></tr>';
+      return;
+    }
+    var today = new Date().toISOString().split('T')[0];
+    tbody.innerHTML = data.recentDocs.map(function(d) {
+      var expiry = d.expires_at || '—';
+      var expCls = '';
+      if (d.expires_at) {
+        if (d.expires_at < today) expCls = 'color:#c53030;font-weight:700;';
+        else {
+          var soon = new Date(today); soon.setDate(soon.getDate() + 90);
+          if (d.expires_at < soon.toISOString().split('T')[0]) expCls = 'color:#dd6b20;font-weight:600;';
+        }
+      }
+      var typeColors = { passport: 'tag-blue', visa: 'tag-green', medical: 'tag-gray' };
+      var visaReqBadge = d.visa_required
+        ? '<span class="tag tag-red">Visa Required</span>'
+        : '<span style="color:#a0aec0;font-size:12px;">—</span>';
+      return '<tr>' +
+        '<td style="color:#a0aec0;">' + d.id + '</td>' +
+        '<td><strong>' + escHtml(d.user_name || '') + '</strong><br>' +
+          '<span style="font-size:11px;color:#718096;">' + escHtml(d.user_email || '') + '</span></td>' +
+        '<td><span class="tag ' + (typeColors[d.doc_type] || 'tag-gray') + '">' + escHtml(d.doc_type) + '</span></td>' +
+        '<td>' + escHtml(d.doc_subtype || '—') + '</td>' +
+        '<td style="font-weight:600;">' + escHtml(d.country_code || '—') + '</td>' +
+        '<td style="' + expCls + '">' + expiry + '</td>' +
+        '<td>' + visaReqBadge + '</td>' +
+        '<td style="color:#718096;font-size:12px;">' + (d.created_at || '').split('T')[0] + '</td>' +
+        '</tr>';
+    }).join('');
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

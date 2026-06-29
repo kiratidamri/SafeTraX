@@ -65,12 +65,22 @@
 
       <!-- Score breakdown -->
       <div id="risk-breakdown" style="margin-top:0.75rem; display:none;">
-        <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:600;">Formula: score = 0.40×CDC + 0.30×WHO + 0.20×NEWS + 0.10×BASE</p>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.4rem; font-weight:600;">Formula: score = 0.35×CDC + 0.25×WHO + 0.20×NEWS + 0.10×AQI + 0.10×BASE</p>
         <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem;">
           <span class="risk-badge risk-0-3" id="bd-cdc">CDC —</span>
           <span class="risk-badge risk-0-3" id="bd-who">WHO —</span>
           <span class="risk-badge risk-0-3" id="bd-news">News —</span>
+          <span class="risk-badge risk-0-3" id="bd-aqi">AQI —</span>
           <span class="risk-badge risk-0-3" id="bd-base">Base —</span>
+        </div>
+        <!-- AQI detail card -->
+        <div id="aqi-detail" style="display:none; background:var(--fill); border-radius:8px; padding:0.6rem 0.85rem; margin-bottom:0.5rem; font-size:0.82rem;">
+          <span style="font-weight:600;">Air Quality</span>
+          <span id="aqi-level-label" style="margin-left:0.4rem; font-weight:700;"></span>
+          <span id="aqi-city-label"  style="color:var(--text-muted); margin-left:0.4rem;"></span>
+          <span style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:0.15rem;">
+            Source: World Air Quality Index (WAQI / aqicn.org) · Dominant pollutant: <span id="aqi-pol-label">—</span>
+          </span>
         </div>
         <div id="risk-source-detail" style="font-size:0.8rem; color:var(--text-muted);"></div>
       </div>
@@ -203,15 +213,31 @@
       var bdCDC  = document.getElementById('bd-cdc');
       var bdWHO  = document.getElementById('bd-who');
       var bdNews = document.getElementById('bd-news');
+      var bdAQI  = document.getElementById('bd-aqi');
       var bdBase = document.getElementById('bd-base');
-      bdCDC.textContent  = 'CDC '  + b.cdc.toFixed(1);
-      bdWHO.textContent  = 'WHO '  + b.who.toFixed(1);
-      bdNews.textContent = 'News ' + b.news.toFixed(1);
-      bdBase.textContent = 'Base ' + b.base.toFixed(1);
-      [bdCDC, bdWHO, bdNews, bdBase].forEach(function(el, i) {
-        var v = [b.cdc, b.who, b.news, b.base][i];
+      bdCDC.textContent  = 'CDC '  + (b.cdc  || 0).toFixed(1);
+      bdWHO.textContent  = 'WHO '  + (b.who  || 0).toFixed(1);
+      bdNews.textContent = 'News ' + (b.news || 0).toFixed(1);
+      bdAQI.textContent  = 'AQI '  + (b.aqi  || 0).toFixed(1);
+      bdBase.textContent = 'Base ' + (b.base || 0).toFixed(1);
+      [bdCDC, bdWHO, bdNews, bdAQI, bdBase].forEach(function(el, i) {
+        var v = [b.cdc, b.who, b.news, b.aqi || 0, b.base][i];
         el.className = 'risk-badge ' + badgeClass(v);
       });
+
+      // AQI detail card
+      var aq = data.sources && data.sources.air_quality;
+      if (aq && aq.aqi) {
+        var aqiDetail = document.getElementById('aqi-detail');
+        aqiDetail.style.display = 'block';
+        document.getElementById('aqi-level-label').textContent = aq.label + ' (AQI ' + aq.aqi + ')';
+        document.getElementById('aqi-level-label').style.color = aq.color || '#333';
+        document.getElementById('aqi-city-label').textContent  = '— ' + aq.city;
+        document.getElementById('aqi-pol-label').textContent   = aq.dominentpol ? aq.dominentpol.toUpperCase() : '—';
+      } else {
+        var bdAQIel = document.getElementById('bd-aqi');
+        bdAQIel.title = 'Set WAQI_API_KEY env var to enable live air quality data';
+      }
 
       var html = '';
       var notices   = (data.sources && data.sources.cdc_notices)   || [];

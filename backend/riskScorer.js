@@ -3,16 +3,16 @@
  *
  * FORMULA
  * ───────────────────────────────────────────────────────────────────────────
- * score = clamp( 0.40×CDC + 0.30×WHO + 0.20×NEWS + 0.10×BASE , 0, 10 )
+ * score = clamp( 0.35×CDC + 0.25×WHO + 0.20×NEWS + 0.10×AQI + 0.10×BASE , 0, 10 )
  *
  * where each component is an independent 0–10 score:
  *
- * CDC component  (weight 40%)
+ * CDC component  (weight 35%)
  *   Source: HTML scrape of https://wwwnc.cdc.gov/travel/notices  (no RSS — 404)
  *   Level 3 Warning = 10  |  Level 2 Alert = 6  |  Level 1 Watch = 3  |  None = 0
  *   +0.5 per additional notice for the same country (cap 10)
  *
- * WHO/Outbreak component  (weight 30%)
+ * WHO/Outbreak component  (weight 25%)
  *   Source: ReliefWeb RSS (UN humanitarian service, WHO partner)
  *   https://reliefweb.int/updates/rss.xml?search=outbreak+health+emergency
  *   WHO's own RSS feeds return 404 — confirmed dead as of 2025.
@@ -29,6 +29,18 @@
  *   Negative keywords: warning, danger, outbreak, attack, violence, crime,
  *                      disaster, emergency, killed, evacuation, threat, crisis
  *
+ * AQI component  (weight 10%)
+ *   Source: World Air Quality Index (WAQI) — https://api.waqi.info
+ *   Fetches real-time PM2.5/PM10/O3 AQI for country's major city.
+ *   Set WAQI_API_KEY env var (free key at https://aqicn.org/api/).
+ *   Falls back gracefully (component = 0) if no key or API down.
+ *   AQI  0–50   (Good)          → score 0.0–1.5
+ *   AQI 51–100  (Moderate)      → score 1.5–3.5
+ *   AQI 101–150 (Unhealthy-SG)  → score 3.5–5.5
+ *   AQI 151–200 (Unhealthy)     → score 5.5–7.5
+ *   AQI 201–300 (Very Unhealthy)→ score 7.5–9.0
+ *   AQI 301+    (Hazardous)     → score 10
+ *
  * BASE component  (weight 10%)
  *   Static safety baseline per country derived from Global Peace Index quartiles.
  *   Very safe (top 40): 1  |  Safe (41–80): 2  |  Moderate (81–120): 4
@@ -42,6 +54,26 @@
 const { XMLParser } = require('fast-xml-parser');
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY || '';
+const WAQI_API_KEY = process.env.WAQI_API_KEY || '';
+
+// ─── Country → representative city for WAQI lookup ────────────────────────
+const COUNTRY_CITY = {
+  US:'los-angeles', GB:'london',     FR:'paris',         DE:'berlin',
+  IT:'rome',        ES:'madrid',     JP:'tokyo',         CN:'beijing',
+  IN:'delhi',       BR:'sao-paulo',  AU:'sydney',        CA:'toronto',
+  MX:'mexico-city', TH:'bangkok',   SG:'singapore',     MY:'kuala-lumpur',
+  ID:'jakarta',     PH:'manila',     VN:'hanoi',         KR:'seoul',
+  TW:'taipei',      HK:'hong-kong', SA:'riyadh',        AE:'dubai',
+  TR:'istanbul',    EG:'cairo',      ZA:'johannesburg',  NG:'lagos',
+  KE:'nairobi',     ET:'addis-ababa',AR:'buenos-aires',  CL:'santiago',
+  CO:'bogota',      PE:'lima',       UA:'kyiv',          PL:'warsaw',
+  GR:'athens',      PT:'lisbon',     NL:'amsterdam',     BE:'brussels',
+  SE:'stockholm',   NO:'oslo',       DK:'copenhagen',    FI:'helsinki',
+  CH:'zurich',      AT:'vienna',     PK:'lahore',        IR:'tehran',
+  IQ:'baghdad',     IL:'tel-aviv',   MA:'casablanca',    RU:'moscow',
+  BD:'dhaka',       NP:'kathmandu',  LK:'colombo',       MM:'yangon',
+  KH:'phnom-penh',  LA:'vientiane',
+};
 
 // ─── Static BASE scores (Global Peace Index-derived) ───────────────────────
 const BASE_SCORES = {
@@ -261,6 +293,49 @@ async function fetchNews(countryCode) {
     }));
 }
 
+// ─── Fetch air quality via WAQI ───────────────────────────────────────────────
+// Source: https://api.waqi.info — free key at https://aqicn.org/api/
+// Returns { aqi, city, dominentpol, level, source } or null on failure.
+async function fetchAirQuality(countryCode) {
+  if (!WAQI_API_KEY) return null;
+  const city = COUNTRY_CITY[countryCode.toUpperCase()];
+  if (!city) return null;
+
+  const url = `https://api.waqi.info/feed/${encodeURIComponent(city)}/?token=${WAQI_API_KEY}`;
+  const res  = await fetch(url, { headers: { 'User-Agent': 'SafeTrax-RiskScorer/1.0' }, signal: AbortSignal.timeout(8000) });
+  const data = await res.json();
+
+  if (data.status !== 'ok' || !data.data || data.data === 'Unknown station') return null;
+
+  const aqi = parseInt(data.data.aqi, 10);
+  if (isNaN(aqi)) return null;
+
+  const pol = data.data.dominentpol || 'pm25';
+  const cityName = data.data.city?.name || city;
+  const time = data.data.time?.s || '';
+
+  return { aqi, city: cityName, dominentpol: pol, time, source: 'WAQI / aqicn.org' };
+}
+
+// AQI (US EPA standard) → 0–10 subscale
+function aqiToScore(aqi) {
+  if (aqi <= 50)  return parseFloat((aqi / 50 * 1.5).toFixed(1));
+  if (aqi <= 100) return parseFloat((1.5 + (aqi - 50)  / 50  * 2.0).toFixed(1));
+  if (aqi <= 150) return parseFloat((3.5 + (aqi - 100) / 50  * 2.0).toFixed(1));
+  if (aqi <= 200) return parseFloat((5.5 + (aqi - 150) / 50  * 2.0).toFixed(1));
+  if (aqi <= 300) return parseFloat((7.5 + (aqi - 200) / 100 * 1.5).toFixed(1));
+  return 10;
+}
+
+function aqiLevel(aqi) {
+  if (aqi <= 50)  return { label: 'Good',                         color: '#22c55e' };
+  if (aqi <= 100) return { label: 'Moderate',                     color: '#eab308' };
+  if (aqi <= 150) return { label: 'Unhealthy for Sensitive Groups', color: '#f97316' };
+  if (aqi <= 200) return { label: 'Unhealthy',                    color: '#ef4444' };
+  if (aqi <= 300) return { label: 'Very Unhealthy',               color: '#a855f7' };
+  return               { label: 'Hazardous',                      color: '#7f1d1d' };
+}
+
 // ─── Component scorers ───────────────────────────────────────────────────────
 function scoreCDC(notices) {
   if (!notices.length) return 0;
@@ -408,28 +483,35 @@ async function fetchGlobalFeed() {
 async function fetchRiskData({ country }) {
   const code = country.toUpperCase();
 
-  // Fetch all three sources in parallel; fail gracefully if one is down
-  const [cdcResult, whoResult, newsResult] = await Promise.allSettled([
+  // Fetch all four sources in parallel; fail gracefully if any one is down
+  const [cdcResult, whoResult, newsResult, aqiResult] = await Promise.allSettled([
     fetchCDCNotices(code),
     fetchWHOOutbreaks(code),
     fetchNews(code),
+    fetchAirQuality(code),
   ]);
 
-  const cdcNotices  = cdcResult.status  === 'fulfilled' ? cdcResult.value  : [];
-  const whoOutbreaks = whoResult.status === 'fulfilled' ? whoResult.value  : [];
+  const cdcNotices   = cdcResult.status  === 'fulfilled' ? cdcResult.value  : [];
+  const whoOutbreaks = whoResult.status  === 'fulfilled' ? whoResult.value  : [];
   const newsArticles = newsResult.status === 'fulfilled' ? newsResult.value : [];
+  const aqiData      = aqiResult.status  === 'fulfilled' ? aqiResult.value  : null;
 
   const cdcComp  = scoreCDC(cdcNotices);
   const whoComp  = scoreWHO(whoOutbreaks);
   const newsComp = scoreNews(newsArticles);
+  const aqiComp  = aqiData ? aqiToScore(aqiData.aqi) : 0;
   const baseComp = scoreBase(code);
 
   /*
    * FORMULA:
-   *   score = clamp( 0.40×CDC + 0.30×WHO + 0.20×NEWS + 0.10×BASE , 0, 10 )
+   *   score = clamp( 0.35×CDC + 0.25×WHO + 0.20×NEWS + 0.10×AQI + 0.10×BASE , 0, 10 )
    */
-  const raw   = 0.40 * cdcComp + 0.30 * whoComp + 0.20 * newsComp + 0.10 * baseComp;
+  const raw   = 0.35 * cdcComp + 0.25 * whoComp + 0.20 * newsComp + 0.10 * aqiComp + 0.10 * baseComp;
   const score = Math.min(10, Math.max(0, parseFloat(raw.toFixed(1))));
+
+  const aqiMeta = aqiData
+    ? { ...aqiData, score: aqiComp, ...aqiLevel(aqiData.aqi) }
+    : null;
 
   return {
     score,
@@ -437,22 +519,25 @@ async function fetchRiskData({ country }) {
       cdc:  cdcComp,
       who:  whoComp,
       news: newsComp,
+      aqi:  aqiComp,
       base: baseComp,
     },
     formula: {
-      expression: 'score = clamp(0.40×CDC + 0.30×WHO + 0.20×NEWS + 0.10×BASE, 0, 10)',
-      weights: { cdc: 0.40, who: 0.30, news: 0.20, base: 0.10 },
-      raw_components: { cdc: cdcComp, who: whoComp, news: newsComp, base: baseComp },
+      expression: 'score = clamp(0.35×CDC + 0.25×WHO + 0.20×NEWS + 0.10×AQI + 0.10×BASE, 0, 10)',
+      weights: { cdc: 0.35, who: 0.25, news: 0.20, aqi: 0.10, base: 0.10 },
+      raw_components: { cdc: cdcComp, who: whoComp, news: newsComp, aqi: aqiComp, base: baseComp },
     },
     sources: {
       cdc_notices:    cdcNotices,
       who_outbreaks:  whoOutbreaks,
       news_items:     newsArticles.slice(0, 5),
+      air_quality:    aqiMeta,
     },
     errors: {
       cdc:  cdcResult.status  === 'rejected' ? cdcResult.reason?.message  : null,
       who:  whoResult.status  === 'rejected' ? whoResult.reason?.message  : null,
       news: newsResult.status === 'rejected' ? newsResult.reason?.message : null,
+      aqi:  aqiResult.status  === 'rejected' ? aqiResult.reason?.message  : (WAQI_API_KEY ? null : 'WAQI_API_KEY not set — AQI component skipped'),
     },
   };
 }

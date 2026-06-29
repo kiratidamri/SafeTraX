@@ -64,6 +64,9 @@ db.exec(schema);
   'ALTER TABLE destinations ADD COLUMN airline         TEXT',
   'ALTER TABLE destinations ADD COLUMN depart_airport  TEXT',
   'ALTER TABLE destinations ADD COLUMN arrive_airport  TEXT',
+  'ALTER TABLE travel_documents ADD COLUMN visa_required INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE risk_scores ADD COLUMN aqi_component REAL NOT NULL DEFAULT 0',
+  'ALTER TABLE risk_scores ADD COLUMN air_quality_json TEXT',
 ].forEach(function(sql) {
   try { db.exec(sql); } catch(e) { /* column already exists */ }
 });
@@ -91,12 +94,14 @@ app.get('/api/risk', async (req, res) => {
           cdc:  cached.cdc_component,
           who:  cached.who_component,
           news: cached.news_component,
+          aqi:  cached.aqi_component || 0,
           base: cached.base_component,
         },
         sources: {
           cdc_notices:   JSON.parse(cached.cdc_notices_json  || '[]'),
           who_outbreaks: JSON.parse(cached.who_outbreaks_json || '[]'),
           news_items:    JSON.parse(cached.news_items_json   || '[]'),
+          air_quality:   JSON.parse(cached.air_quality_json  || 'null'),
         },
         cached:       true,
         calculated_at: cached.calculated_at,
@@ -110,17 +115,18 @@ app.get('/api/risk', async (req, res) => {
     db.prepare(`
       INSERT INTO risk_scores
         (country_code, state_code, city, score,
-         cdc_component, who_component, news_component, base_component,
-         cdc_notices_json, who_outbreaks_json, news_items_json, expires_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?, datetime('now','+1 hour'))
+         cdc_component, who_component, news_component, aqi_component, base_component,
+         cdc_notices_json, who_outbreaks_json, news_items_json, air_quality_json, expires_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now','+1 hour'))
     `).run(
       country.toUpperCase(), state || null, city || null,
       result.score,
       result.breakdown.cdc, result.breakdown.who,
-      result.breakdown.news, result.breakdown.base,
+      result.breakdown.news, result.breakdown.aqi || 0, result.breakdown.base,
       JSON.stringify(result.sources.cdc_notices),
       JSON.stringify(result.sources.who_outbreaks),
       JSON.stringify(result.sources.news_items),
+      JSON.stringify(result.sources.air_quality || null),
     );
 
     // Persist individual API records for audit/history
@@ -509,6 +515,252 @@ app.post('/api/sos', (req, res) => {
   res.status(201).json({ id: result.lastInsertRowid, ok: true });
 });
 
+// ─── POST /api/documents ─────────────────────────────────────────────────────
+// Upload a document (passport, visa, or medical). File sent as base64 in JSON.
+// Max raw file size: 5 MB (6.7 MB base64).
+app.post('/api/documents', (req, res) => {
+  const { user_id, doc_type, doc_subtype, country_code,
+          file_name, file_data, file_mime,
+          issued_at, expires_at, notes, visa_required } = req.body;
+
+  if (!user_id || !doc_type || !file_name || !file_data)
+    return res.status(400).json({ error: 'user_id, doc_type, file_name, file_data are required' });
+  if (!['passport', 'visa', 'medical'].includes(doc_type))
+    return res.status(400).json({ error: 'doc_type must be passport, visa, or medical' });
+  if (file_data.length > 7_000_000)
+    return res.status(413).json({ error: 'File too large. Maximum size is 5 MB.' });
+
+  try {
+    const result = db.prepare(`
+      INSERT INTO travel_documents
+        (user_id, doc_type, doc_subtype, country_code,
+         file_name, file_data, file_mime, issued_at, expires_at, notes, visa_required)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    `).run(user_id, doc_type, doc_subtype || null, country_code || null,
+           file_name, file_data, file_mime || null,
+           issued_at || null, expires_at || null, notes || null,
+           visa_required ? 1 : 0);
+    res.status(201).json({ id: result.lastInsertRowid });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET /api/documents ──────────────────────────────────────────────────────
+// List user's documents — metadata only, no file_data (keeps response small).
+app.get('/api/documents', (req, res) => {
+  const { user_id } = req.query;
+  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  const docs = db.prepare(`
+    SELECT id, doc_type, doc_subtype, country_code,
+           file_name, file_mime, issued_at, expires_at, notes, visa_required, created_at
+    FROM travel_documents WHERE user_id = ?
+    ORDER BY doc_type, created_at DESC
+  `).all(user_id);
+  res.json({ documents: docs });
+});
+
+// ─── GET /api/documents/:id/file ─────────────────────────────────────────────
+// Return the raw file for inline viewing or download.
+app.get('/api/documents/:id/file', (req, res) => {
+  const { user_id } = req.query;
+  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  const doc = db.prepare(
+    'SELECT file_name, file_data, file_mime FROM travel_documents WHERE id = ? AND user_id = ?'
+  ).get(req.params.id, user_id);
+  if (!doc) return res.status(404).json({ error: 'Document not found' });
+  const buf = Buffer.from(doc.file_data, 'base64');
+  res.set('Content-Type', doc.file_mime || 'application/octet-stream');
+  res.set('Content-Disposition', `inline; filename="${doc.file_name}"`);
+  res.send(buf);
+});
+
+// ─── DELETE /api/documents/:id ───────────────────────────────────────────────
+app.delete('/api/documents/:id', (req, res) => {
+  const { user_id } = req.query;
+  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  const r = db.prepare(
+    'DELETE FROM travel_documents WHERE id = ? AND user_id = ?'
+  ).run(req.params.id, user_id);
+  if (r.changes === 0) return res.status(404).json({ error: 'Document not found' });
+  res.json({ ok: true });
+});
+
+// ─── GET /api/documents/verify ───────────────────────────────────────────────
+// Compliance check: validates passport + visas against a travel plan's dates,
+// and cross-checks medical documents against the user's health profile.
+//
+// Status values
+//   valid                — meets all entry requirements
+//   renewal_required     — passport valid but expires within 6 months of return
+//   insufficient_validity— visa/passport expires before trip ends
+//   expired              — past expiration date
+//   not_uploaded         — required document not on file
+//   profile_matched      — medical doc aligns with health profile (medical only)
+//   update_recommended   — medical doc uploaded but profile field is empty (medical only)
+//   discrepancy_noted    — profile data conflicts with uploaded document (medical only)
+//
+// Overall:  compliant | action_required | non_compliant
+app.get('/api/documents/verify', (req, res) => {
+  const { user_id, travel_plan_id } = req.query;
+  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+
+  try {
+    const today = new Date().toISOString().split('T')[0];
+
+    const docs = db.prepare(`
+      SELECT id, doc_type, doc_subtype, country_code, file_name, issued_at, expires_at, visa_required
+      FROM travel_documents WHERE user_id = ? ORDER BY created_at DESC
+    `).all(user_id);
+
+    const passport  = docs.find(d => d.doc_type === 'passport') || null;
+    const visas     = docs.filter(d => d.doc_type === 'visa');
+    const medicals  = docs.filter(d => d.doc_type === 'medical');
+
+    const results = { passport: null, visas: [], medical: [], overall: 'compliant' };
+
+    // ── Passport & visa check (requires a travel plan) ──────────────────────
+    if (travel_plan_id) {
+      const plan = db.prepare(
+        'SELECT * FROM travel_plans WHERE id = ? AND user_id = ?'
+      ).get(travel_plan_id, user_id);
+      if (!plan) return res.status(404).json({ error: 'Travel plan not found' });
+
+      const destinations = db.prepare(
+        'SELECT * FROM destinations WHERE travel_plan_id = ? ORDER BY seq'
+      ).all(travel_plan_id);
+
+      const tripEnd   = plan.date_end;
+      const sixMonths = (() => {
+        const d = new Date(tripEnd);
+        d.setMonth(d.getMonth() + 6);
+        return d.toISOString().split('T')[0];
+      })();
+
+      // Passport
+      if (!passport) {
+        results.passport = {
+          status: 'not_uploaded', label: 'Not Uploaded',
+          message: 'No passport on file. Upload your passport to check validity.',
+        };
+      } else if (passport.expires_at && passport.expires_at <= today) {
+        results.passport = {
+          status: 'expired', label: 'Expired',
+          message: `Passport expired on ${passport.expires_at}. Immediate renewal required before travel.`,
+        };
+      } else if (passport.expires_at && passport.expires_at < sixMonths) {
+        results.passport = {
+          status: 'renewal_required', label: 'Renewal Required',
+          message: `Passport expires ${passport.expires_at}. Most countries require at least 6 months validity beyond your return date (${tripEnd}). Renew before departure.`,
+        };
+      } else {
+        results.passport = {
+          status: 'valid', label: 'Valid',
+          message: `Passport valid through ${passport.expires_at || 'N/A'}. Meets the 6-month validity rule for your return date (${tripEnd}).`,
+        };
+      }
+
+      // Visa per destination
+      for (const dest of destinations) {
+        const visa = visas.find(v => v.country_code === dest.country_code) || null;
+        const confirmed = visa && visa.visa_required === 1;
+
+        if (!visa) {
+          results.visas.push({
+            country_code: dest.country_code, city: dest.city || null,
+            status: 'not_uploaded', label: 'Not Uploaded',
+            message: `No visa on file for ${dest.country_code}. Upload a visa if your citizenship requires one for entry, or confirm visa-free eligibility.`,
+          });
+        } else if (visa.expires_at && visa.expires_at < today) {
+          results.visas.push({
+            country_code: dest.country_code, city: dest.city || null,
+            status: 'expired', label: 'Expired',
+            message: `Visa for ${dest.country_code} expired on ${visa.expires_at}. Apply for a new visa before travel.${confirmed ? ' You confirmed this destination requires a visa.' : ''}`,
+          });
+        } else if (visa.expires_at && visa.expires_at < tripEnd) {
+          results.visas.push({
+            country_code: dest.country_code, city: dest.city || null,
+            status: 'insufficient_validity', label: 'Insufficient Validity',
+            message: `Visa for ${dest.country_code} expires ${visa.expires_at}, before your trip ends on ${tripEnd}. Your visa does not cover the full travel period.${confirmed ? ' Visa entry confirmed required.' : ''}`,
+          });
+        } else {
+          results.visas.push({
+            country_code: dest.country_code, city: dest.city || null,
+            status: 'valid', label: 'Valid',
+            visa_required: confirmed,
+            message: `Visa for ${dest.country_code} is valid${visa.expires_at ? ' through ' + visa.expires_at : ''} and covers the full travel period.${confirmed ? ' Entry visa confirmed required and on file.' : ' Visa-free or visa uploaded as precaution.'}`,
+          });
+        }
+      }
+    }
+
+    // ── Medical document match ───────────────────────────────────────────────
+    const user = db.prepare(
+      'SELECT health_concerns, vaccination_history, vaccination_status FROM users WHERE id = ?'
+    ).get(user_id);
+
+    let profileVacc = [];
+    let profileHealth = [];
+    try { profileVacc   = JSON.parse(user.vaccination_status || '[]'); } catch {}
+    try { profileHealth = JSON.parse(user.health_concerns    || '[]'); } catch {}
+
+    const vaccDocs   = medicals.filter(d => d.doc_subtype === 'vaccination');
+    const healthDocs = medicals.filter(d => ['checkup','allergy','prescription'].includes(d.doc_subtype));
+
+    if (vaccDocs.length > 0) {
+      if (profileVacc.length > 0) {
+        results.medical.push({
+          doc_subtype: 'vaccination', label: 'Profile Matched', status: 'profile_matched',
+          message: `Vaccination record on file. Profile lists: ${profileVacc.join(', ')}.`,
+        });
+      } else {
+        results.medical.push({
+          doc_subtype: 'vaccination', label: 'Update Recommended', status: 'update_recommended',
+          message: 'Vaccination document uploaded but your health profile vaccination section is empty. Update your profile to reflect current vaccinations.',
+        });
+      }
+    } else if (profileVacc.length > 0) {
+      results.medical.push({
+        doc_subtype: 'vaccination', label: 'Not Uploaded', status: 'not_uploaded',
+        message: 'Your profile lists vaccinations but no vaccination record has been uploaded.',
+      });
+    }
+
+    if (healthDocs.length > 0) {
+      if (profileHealth.length > 0) {
+        results.medical.push({
+          doc_subtype: 'health', label: 'Profile Matched', status: 'profile_matched',
+          message: `Medical document on file. Profile health concerns: ${profileHealth.join(', ')}.`,
+        });
+      } else {
+        results.medical.push({
+          doc_subtype: 'health', label: 'Update Recommended', status: 'update_recommended',
+          message: 'Medical document uploaded but no health concerns are recorded in your profile. Consider updating your health profile.',
+        });
+      }
+    }
+
+    // ── Overall status ───────────────────────────────────────────────────────
+    const allStatuses = [
+      results.passport?.status,
+      ...results.visas.map(v => v.status),
+      ...results.medical.map(m => m.status),
+    ].filter(Boolean);
+
+    if (allStatuses.includes('expired'))
+      results.overall = 'non_compliant';
+    else if (allStatuses.some(s => ['renewal_required','insufficient_validity','not_uploaded','update_recommended'].includes(s)))
+      results.overall = 'action_required';
+    else
+      results.overall = 'compliant';
+
+    res.json(results);
+  } catch (err) {
+    console.error('[/api/documents/verify]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── POST /api/risk-brief ─────────────────────────────────────────────────────
 // Generates a 2-sentence AI risk brief for a destination using live DB data.
 // Falls back to a template sentence if no API key.
@@ -632,9 +884,28 @@ app.get('/api/admin/stats', (req, res) => {
     // Top airlines
     const airlineRows = db.prepare(`SELECT airline, COUNT(*) as count FROM destinations WHERE airline IS NOT NULL AND airline != '' GROUP BY airline ORDER BY count DESC LIMIT 8`).all();
 
+    // Document stats
+    const docsByType      = db.prepare(`SELECT doc_type, COUNT(*) as count FROM travel_documents GROUP BY doc_type`).all();
+    const totalDocs       = db.prepare(`SELECT COUNT(*) as c FROM travel_documents`).get().c;
+    const usersWithPassport = db.prepare(`SELECT COUNT(DISTINCT user_id) as c FROM travel_documents WHERE doc_type = 'passport'`).get().c;
+    const usersWithVisa   = db.prepare(`SELECT COUNT(DISTINCT user_id) as c FROM travel_documents WHERE doc_type = 'visa'`).get().c;
+    const expiredDocs     = db.prepare(`SELECT COUNT(*) as c FROM travel_documents WHERE expires_at < date('now')`).get().c;
+    const expiringSoonDocs= db.prepare(`SELECT COUNT(*) as c FROM travel_documents WHERE expires_at BETWEEN date('now') AND date('now', '+90 days')`).get().c;
+    const visaRequiredDests = db.prepare(`SELECT country_code, COUNT(*) as count FROM travel_documents WHERE doc_type = 'visa' AND visa_required = 1 GROUP BY country_code ORDER BY count DESC LIMIT 10`).all();
+    const recentDocs      = db.prepare(`
+      SELECT td.id, td.doc_type, td.doc_subtype, td.country_code,
+             td.expires_at, td.visa_required, td.created_at,
+             u.name as user_name, u.email as user_email
+      FROM travel_documents td
+      JOIN users u ON u.id = td.user_id
+      ORDER BY td.created_at DESC LIMIT 20
+    `).all();
+
     res.json({ kpis, userGrowth, topDests, transport, healthCounts, citizenships, topRisks,
                freqRows, travelerTypeRows, insuredCount, purposeCounts, vaccCounts, ageBrackets,
-               sosTotal, sosActive, plansWithHotel, plansWithFlight, airlineRows });
+               sosTotal, sosActive, plansWithHotel, plansWithFlight, airlineRows,
+               docsByType, totalDocs, usersWithPassport, usersWithVisa,
+               expiredDocs, expiringSoonDocs, visaRequiredDests, recentDocs });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#548AB8">
+  <title>SafeTrax – Documents</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ── Status badges ── */
+    .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .badge-valid          { background: #22c55e; color: #fff; }
+    .badge-action         { background: #f59e0b; color: #fff; }
+    .badge-expired        { background: #ef4444; color: #fff; }
+    .badge-not-uploaded   { background: #9ca3af; color: #fff; }
+    .badge-compliant      { background: #22c55e; color: #fff; font-size: 0.9rem; padding: 0.35rem 1rem; }
+    .badge-action-req     { background: #f59e0b; color: #fff; font-size: 0.9rem; padding: 0.35rem 1rem; }
+    .badge-non-compliant  { background: #ef4444; color: #fff; font-size: 0.9rem; padding: 0.35rem 1rem; }
+
+    /* ── Overall status bar ── */
+    .status-banner {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+    }
+    .status-banner.compliant     { background: #dcfce7; border: 1px solid #86efac; }
+    .status-banner.action_required { background: #fef3c7; border: 1px solid #fcd34d; }
+    .status-banner.non_compliant { background: #fee2e2; border: 1px solid #fca5a5; }
+
+    .status-icon { font-size: 1.6rem; }
+    .status-text { font-size: 0.9rem; line-height: 1.35; }
+    .status-text strong { display: block; font-size: 1rem; }
+
+    /* ── Document card ── */
+    .doc-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.6rem;
+      display: flex; align-items: flex-start; gap: 0.75rem;
+    }
+    .doc-icon { font-size: 1.5rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .doc-info { flex: 1; min-width: 0; }
+    .doc-name { font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .doc-meta { font-size: 0.78rem; color: #6b7280; margin-top: 0.15rem; }
+    .doc-actions { display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap; }
+    .doc-actions a, .doc-actions button {
+      font-size: 0.75rem; padding: 0.2rem 0.55rem;
+      border-radius: 6px; border: 1px solid #d1d5db;
+      background: #fff; cursor: pointer; color: #374151; text-decoration: none;
+    }
+    .doc-actions button.del { border-color: #fca5a5; color: #ef4444; }
+
+    /* ── Compliance row ── */
+    .comp-row {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .comp-row:last-child { border-bottom: none; }
+    .comp-label { flex: 1; font-size: 0.88rem; }
+    .comp-label strong { display: block; }
+    .comp-label small  { color: #6b7280; font-size: 0.78rem; line-height: 1.3; }
+
+    /* ── Upload form ── */
+    .upload-form { display: none; }
+    .upload-form.visible { display: block; }
+    .form-group { margin-bottom: 0.75rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 0.55rem 0.75rem;
+      border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 0.9rem; box-sizing: border-box;
+    }
+    .form-group textarea { height: 70px; resize: vertical; }
+    .field-conditional { display: none; }
+    .file-hint { font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; }
+    .upload-progress { display: none; font-size: 0.85rem; color: #2563eb; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>SafeTrax</h1>
+  <p style="font-size:0.9rem;opacity:0.95;">Travel Documents</p>
+</header>
+
+<main class="container" style="padding-bottom:5rem;">
+
+  <!-- ── Overall compliance banner ── -->
+  <div id="compliance-banner" class="status-banner" style="display:none;"></div>
+
+  <!-- ── Trip selector ── -->
+  <div class="card">
+    <h2>Check compliance for a trip</h2>
+    <div class="form-group" style="margin-bottom:0;">
+      <label for="trip-select">Select travel plan</label>
+      <select id="trip-select">
+        <option value="">— Select a trip —</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ── Compliance results ── -->
+  <div id="compliance-section" style="display:none;">
+    <div class="card">
+      <h2>Passport</h2>
+      <div id="comp-passport"></div>
+    </div>
+    <div class="card">
+      <h2>Visa</h2>
+      <div id="comp-visa"></div>
+    </div>
+    <div class="card">
+      <h2>Medical documents</h2>
+      <div id="comp-medical"></div>
+    </div>
+  </div>
+
+  <!-- ── My documents ── -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+      <h2 style="margin:0;">My documents</h2>
+      <button class="btn btn-primary" style="padding:0.4rem 0.9rem;font-size:0.85rem;" onclick="toggleUpload()">+ Upload</button>
+    </div>
+
+    <!-- Upload form -->
+    <div id="upload-form" class="upload-form">
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:1rem;margin-bottom:0.75rem;">
+        <div class="form-group">
+          <label for="doc-type">Document type *</label>
+          <select id="doc-type" onchange="onTypeChange()">
+            <option value="">— Select type —</option>
+            <option value="passport">Passport</option>
+            <option value="visa">Visa</option>
+            <option value="medical">Medical document</option>
+          </select>
+        </div>
+
+        <div id="field-country" class="field-conditional form-group">
+          <label for="doc-country">Country code *</label>
+          <input type="text" id="doc-country" placeholder="e.g. TH, JP, US (ISO 2-letter)" maxlength="2" style="text-transform:uppercase;">
+          <div class="file-hint" id="country-hint"></div>
+        </div>
+
+        <div id="field-subtype" class="field-conditional form-group">
+          <label for="doc-subtype">Document subtype *</label>
+          <select id="doc-subtype">
+            <option value="">— Select subtype —</option>
+          </select>
+        </div>
+
+        <!-- Visa-required attestation — shown only for visa uploads -->
+        <div id="field-visa-required" class="field-conditional form-group" style="background:#fff8e1;border:1px solid #fde68a;border-radius:8px;padding:0.75rem;display:none;">
+          <label style="display:flex;align-items:flex-start;gap:0.6rem;cursor:pointer;margin:0;">
+            <input type="checkbox" id="doc-visa-required" style="width:auto;margin:0;margin-top:0.15rem;flex-shrink:0;">
+            <span style="font-size:0.88rem;font-weight:600;color:#92400e;">I confirm this destination requires a visa for my citizenship</span>
+          </label>
+          <p style="font-size:0.78rem;color:#78350f;margin:0.4rem 0 0 1.45rem;">Check this if your nationality needs a visa to enter this country. This helps SafeTrax flag missing or expired visas as mandatory non-compliance.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="doc-issued">Issue date</label>
+          <input type="date" id="doc-issued">
+        </div>
+
+        <div id="field-expires" class="form-group">
+          <label for="doc-expires">Expiration date</label>
+          <input type="date" id="doc-expires">
+          <div class="file-hint">Leave blank for documents with no expiry date.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="doc-file">File *</label>
+          <input type="file" id="doc-file" accept=".pdf,.jpg,.jpeg,.png,.heic">
+          <div class="file-hint">PDF, JPG, PNG, HEIC — max 5 MB.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="doc-notes">Notes (optional)</label>
+          <textarea id="doc-notes" placeholder="e.g. Single entry, tourist visa, issued by Thai consulate LA"></textarea>
+        </div>
+
+        <div class="upload-progress" id="upload-progress">Uploading…</div>
+
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-primary" style="flex:1;" onclick="submitUpload()">Save document</button>
+          <button class="btn" style="flex:0 0 auto;background:#f3f4f6;" onclick="toggleUpload()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document list -->
+    <div id="doc-list"><p style="color:#9ca3af;font-size:0.9rem;">No documents uploaded yet.</p></div>
+  </div>
+
+</main>
+
+<nav class="nav-bottom">
+  <a href="index.html"><span class="icon-label">Home</span></a>
+  <a href="travel-plan.html"><span class="icon-label">Travel plan</span></a>
+  <a href="history.html"><span class="icon-label">History</span></a>
+  <a href="friends.html"><span class="icon-label">Friends</span></a>
+  <a href="profile.html"><span class="icon-label">Profile</span></a>
+</nav>
+
+<script>
+const API = '';
+const userId = localStorage.getItem('safetrax_user_id') || '1';
+
+// ── Status helpers ────────────────────────────────────────────────────────────
+const STATUS_CONFIG = {
+  valid:                { cls: 'badge-valid',        icon: '✅' },
+  renewal_required:     { cls: 'badge-action',       icon: '⚠️' },
+  insufficient_validity:{ cls: 'badge-action',       icon: '⚠️' },
+  expired:              { cls: 'badge-expired',      icon: '❌' },
+  not_uploaded:         { cls: 'badge-not-uploaded', icon: '⬜' },
+  profile_matched:      { cls: 'badge-valid',        icon: '✅' },
+  update_recommended:   { cls: 'badge-action',       icon: '⚠️' },
+  discrepancy_noted:    { cls: 'badge-action',       icon: '⚠️' },
+};
+
+function badge(status, label) {
+  const cfg = STATUS_CONFIG[status] || { cls: 'badge-not-uploaded', icon: '•' };
+  return `<span class="badge ${cfg.cls}">${cfg.icon} ${label}</span>`;
+}
+
+function compRow(label, sublabel, statusKey, statusLabel, message) {
+  const cfg = STATUS_CONFIG[statusKey] || { icon: '•' };
+  return `<div class="comp-row">
+    <div style="font-size:1.3rem;flex-shrink:0;margin-top:0.1rem;">${cfg.icon}</div>
+    <div class="comp-label">
+      <strong>${label}</strong>
+      ${sublabel ? `<span style="font-size:0.78rem;color:#6b7280;">${sublabel}</span><br>` : ''}
+      <small>${message}</small>
+    </div>
+    ${badge(statusKey, statusLabel)}
+  </div>`;
+}
+
+// ── Document type icon ────────────────────────────────────────────────────────
+function docIcon(type) {
+  return type === 'passport' ? '🛂' : type === 'visa' ? '📋' : '🏥';
+}
+
+// ── Load trips ────────────────────────────────────────────────────────────────
+async function loadTrips() {
+  try {
+    const r = await fetch(`${API}/api/trips?user_id=${userId}`);
+    const data = await r.json();
+    const sel = document.getElementById('trip-select');
+    (data.plans || []).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.route || 'Trip'} — ${p.date_start} to ${p.date_end}`;
+      sel.appendChild(opt);
+    });
+  } catch (e) { console.warn('trips load:', e); }
+}
+
+// ── Load documents ────────────────────────────────────────────────────────────
+async function loadDocs() {
+  try {
+    const r = await fetch(`${API}/api/documents?user_id=${userId}`);
+    const data = await r.json();
+    renderDocs(data.documents || []);
+  } catch (e) { console.warn('docs load:', e); }
+}
+
+function renderDocs(docs) {
+  const el = document.getElementById('doc-list');
+  if (!docs.length) {
+    el.innerHTML = '<p style="color:#9ca3af;font-size:0.9rem;">No documents uploaded yet.</p>';
+    return;
+  }
+  el.innerHTML = docs.map(d => {
+    const expLabel = d.expires_at ? `Expires ${d.expires_at}` : 'No expiry';
+    const countryLabel = d.country_code ? ` · ${d.country_code.toUpperCase()}` : '';
+    const subLabel = d.doc_subtype ? ` · ${d.doc_subtype}` : '';
+    const today = new Date().toISOString().split('T')[0];
+    let expStatus = '';
+    if (d.expires_at) {
+      if (d.expires_at < today) expStatus = badge('expired', 'Expired');
+      else {
+        const sixM = new Date(today); sixM.setMonth(sixM.getMonth() + 6);
+        if (d.doc_type === 'passport' && d.expires_at < sixM.toISOString().split('T')[0])
+          expStatus = badge('renewal_required', 'Renewal Required');
+      }
+    }
+    return `<div class="doc-card">
+      <div class="doc-icon">${docIcon(d.doc_type)}</div>
+      <div class="doc-info">
+        <div class="doc-name">${d.file_name}</div>
+        <div class="doc-meta">${d.doc_type.charAt(0).toUpperCase()+d.doc_type.slice(1)}${subLabel}${countryLabel} · ${expLabel} ${expStatus}</div>
+        ${d.notes ? `<div class="doc-meta" style="margin-top:0.2rem;font-style:italic;">${d.notes}</div>` : ''}
+        <div class="doc-actions">
+          <a href="${API}/api/documents/${d.id}/file?user_id=${userId}" target="_blank">View</a>
+          <button class="del" onclick="deleteDoc(${d.id})">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Compliance check ──────────────────────────────────────────────────────────
+async function runVerify(planId) {
+  const section = document.getElementById('compliance-section');
+  const banner  = document.getElementById('compliance-banner');
+
+  let url = `${API}/api/documents/verify?user_id=${userId}`;
+  if (planId) url += `&travel_plan_id=${planId}`;
+
+  try {
+    const r = await fetch(url);
+    const data = await r.json();
+
+    // Banner
+    const bannerCfg = {
+      compliant:       { cls: 'compliant',       icon: '✅', title: 'Compliant',       sub: 'All documents meet travel requirements.' },
+      action_required: { cls: 'action_required', icon: '⚠️', title: 'Action Required', sub: 'One or more documents need attention before travel.' },
+      non_compliant:   { cls: 'non_compliant',   icon: '❌', title: 'Non-Compliant',   sub: 'One or more documents are expired. Immediate action required.' },
+    };
+    const bc = bannerCfg[data.overall] || bannerCfg.compliant;
+    banner.className = `status-banner ${bc.cls}`;
+    banner.innerHTML = `<div class="status-icon">${bc.icon}</div>
+      <div class="status-text"><strong>${bc.title}</strong>${bc.sub}</div>`;
+    banner.style.display = 'flex';
+
+    // Passport
+    const pp = document.getElementById('comp-passport');
+    if (data.passport) {
+      pp.innerHTML = compRow('Passport', null, data.passport.status, data.passport.label, data.passport.message);
+    } else {
+      pp.innerHTML = '<p style="color:#9ca3af;font-size:0.88rem;">Select a trip to check passport validity.</p>';
+    }
+
+    // Visa
+    const vv = document.getElementById('comp-visa');
+    if (data.visas && data.visas.length) {
+      vv.innerHTML = data.visas.map(v =>
+        compRow(v.country_code, v.city || null, v.status, v.label, v.message)
+      ).join('');
+    } else {
+      vv.innerHTML = '<p style="color:#9ca3af;font-size:0.88rem;">Select a trip to check visa requirements.</p>';
+    }
+
+    // Medical
+    const mm = document.getElementById('comp-medical');
+    if (data.medical && data.medical.length) {
+      mm.innerHTML = data.medical.map(m =>
+        compRow(m.doc_subtype.charAt(0).toUpperCase() + m.doc_subtype.slice(1), null, m.status, m.label, m.message)
+      ).join('');
+    } else {
+      mm.innerHTML = '<p style="color:#9ca3af;font-size:0.88rem;">No medical documents on file.</p>';
+    }
+
+    section.style.display = 'block';
+  } catch (e) { console.error('verify:', e); }
+}
+
+document.getElementById('trip-select').addEventListener('change', function() {
+  if (this.value) runVerify(this.value);
+  else { document.getElementById('compliance-section').style.display = 'none';
+         document.getElementById('compliance-banner').style.display  = 'none'; }
+});
+
+// ── Upload form ───────────────────────────────────────────────────────────────
+function toggleUpload() {
+  const f = document.getElementById('upload-form');
+  f.classList.toggle('visible');
+  if (f.classList.contains('visible')) clearUploadForm();
+}
+
+function onTypeChange() {
+  const type     = document.getElementById('doc-type').value;
+  const fcountry = document.getElementById('field-country');
+  const fsubtype = document.getElementById('field-subtype');
+  const hint     = document.getElementById('country-hint');
+  const sub      = document.getElementById('doc-subtype');
+
+  fcountry.style.display = 'none';
+  fsubtype.style.display = 'none';
+  document.getElementById('field-visa-required').style.display = 'none';
+  document.getElementById('doc-visa-required').checked = false;
+  sub.innerHTML = '<option value="">— Select subtype —</option>';
+
+  if (type === 'visa') {
+    fcountry.style.display = 'block';
+    hint.textContent = 'Destination country this visa is issued for.';
+    fsubtype.style.display = 'block';
+    ['tourist','business','student','work','transit'].forEach(s => {
+      sub.innerHTML += `<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`;
+    });
+    document.getElementById('field-visa-required').style.display = 'block';
+  } else if (type === 'passport') {
+    fcountry.style.display = 'block';
+    hint.textContent = 'Country that issued this passport.';
+  } else if (type === 'medical') {
+    fsubtype.style.display = 'block';
+    ['vaccination','checkup','allergy','prescription'].forEach(s => {
+      sub.innerHTML += `<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`;
+    });
+  }
+}
+
+function clearUploadForm() {
+  ['doc-type','doc-country','doc-subtype','doc-issued','doc-expires','doc-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('doc-file').value = '';
+  document.getElementById('doc-visa-required').checked = false;
+  document.getElementById('field-country').style.display = 'none';
+  document.getElementById('field-subtype').style.display = 'none';
+  document.getElementById('field-visa-required').style.display = 'none';
+  document.getElementById('upload-progress').style.display = 'none';
+}
+
+async function submitUpload() {
+  const type    = document.getElementById('doc-type').value;
+  const country = document.getElementById('doc-country').value.toUpperCase().trim();
+  const subtype = document.getElementById('doc-subtype').value;
+  const issued  = document.getElementById('doc-issued').value;
+  const expires = document.getElementById('doc-expires').value;
+  const notes   = document.getElementById('doc-notes').value.trim();
+  const fileEl  = document.getElementById('doc-file');
+
+  if (!type)             return alert('Please select a document type.');
+  if (!fileEl.files[0]) return alert('Please select a file.');
+  if (type === 'visa' && !country) return alert('Please enter the destination country code for the visa.');
+  if (type === 'passport' && !country) return alert('Please enter the issuing country code for the passport.');
+
+  const file = fileEl.files[0];
+  if (file.size > 5_000_000) return alert('File is too large. Maximum size is 5 MB.');
+
+  const prog = document.getElementById('upload-progress');
+  prog.style.display = 'block';
+  prog.textContent = 'Reading file…';
+
+  try {
+    const b64 = await fileToBase64(file);
+    prog.textContent = 'Uploading…';
+
+    const body = {
+      user_id:      userId,
+      doc_type:     type,
+      doc_subtype:  subtype || null,
+      country_code: (type === 'passport' || type === 'visa') ? (country || null) : null,
+      file_name:    file.name,
+      file_data:    b64,
+      file_mime:    file.type,
+      issued_at:    issued  || null,
+      expires_at:   expires || null,
+      notes:        notes   || null,
+      visa_required: type === 'visa' ? (document.getElementById('doc-visa-required').checked ? 1 : 0) : 0,
+    };
+
+    const r = await fetch(`${API}/api/documents`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const data = await r.json();
+
+    if (!r.ok) { alert(data.error || 'Upload failed.'); prog.style.display = 'none'; return; }
+
+    prog.style.display = 'none';
+    toggleUpload();
+    await loadDocs();
+    // Re-run verify if a trip is selected
+    const sel = document.getElementById('trip-select').value;
+    if (sel) runVerify(sel);
+    else runVerify(null);
+  } catch (e) {
+    alert('Upload failed: ' + e.message);
+    prog.style.display = 'none';
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload  = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+// ── Delete document ───────────────────────────────────────────────────────────
+async function deleteDoc(id) {
+  if (!confirm('Delete this document?')) return;
+  try {
+    const r = await fetch(`${API}/api/documents/${id}?user_id=${userId}`, { method: 'DELETE' });
+    if (r.ok) {
+      await loadDocs();
+      const sel = document.getElementById('trip-select').value;
+      if (sel) runVerify(sel); else runVerify(null);
+    }
+  } catch (e) { alert('Delete failed: ' + e.message); }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadTrips();
+loadDocs();
+runVerify(null); // show medical status without a trip
+</script>
+</body>
+</html>
