@@ -97,6 +97,7 @@ Create `backend/.env`:
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=your_gemini_key   # optional — fallback for /api/risk-brief if Claude is unavailable
 NEWS_API_KEY=your_newsapi_key   # optional — risk scoring works without it
 PORT=3000                        # optional — defaults to 3000
 ```

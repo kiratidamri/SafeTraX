@@ -31,6 +31,28 @@ const Anthropic  = require('@anthropic-ai/sdk');
 const { DatabaseSync } = require('node:sqlite'); // built-in since Node v22
 const { fetchRiskData, fetchGlobalFeed } = require('./riskScorer');
 
+// Gemini text completion — used as a fallback when Claude is unavailable (e.g. out of credits).
+async function callGemini(system, userText, maxTokens) {
+  // Pinned (not "-latest"): newer Gemini models can mandate hidden "thinking" tokens
+  // that eat the whole maxOutputTokens budget before any visible text is produced.
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const resp = await fetch(url, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: userText }] }],
+      generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } },
+    }),
+  });
+  if (!resp.ok) throw new Error(`Gemini ${resp.status}: ${await resp.text()}`);
+  const data = await resp.json();
+  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+  if (!text) throw new Error('Gemini returned no text');
+  return text.trim();
+}
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -779,34 +801,47 @@ app.post('/api/risk-brief', async (req, res) => {
   const score = riskRow ? riskRow.score : null;
   const label = score == null ? 'unknown' : score <= 3 ? 'low' : score <= 6 ? 'moderate' : score <= 9 ? 'high' : 'extreme';
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    const fallback = score != null
-      ? `${country_name || cc} has a ${label} risk score of ${score}/10 based on current CDC, WHO, and news data. ${cdcRows.length ? `CDC notice: ${cdcRows[0].title}.` : 'No active CDC notices.'}`
+  const context = [
+    score != null ? `Risk score: ${score}/10 (${label})` : 'Risk score: not yet calculated',
+    cdcRows.length  ? `CDC notices: ${cdcRows.map(r => `Level ${r.alert_level} — ${r.title}`).join('; ')}` : 'CDC notices: none',
+    whoRows.length  ? `WHO outbreaks: ${whoRows.map(r => `${r.title} (${r.recency})`).join('; ')}` : 'WHO outbreaks: none',
+    newsRows.length ? `Recent news: ${newsRows.map(r => r.title).join('; ')}` : 'Recent news: none',
+  ].join('\n');
+  const briefSystem = 'You are a travel safety analyst. Write exactly 2 sentences: one summarizing the current risk level and why, one actionable recommendation. Plain text only, no markdown.';
+  const briefPrompt  = `Write a 2-sentence risk brief for ${country_name || cc}:\n${context}`;
+
+  let brief;
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const response  = await anthropic.messages.create({
+        model:      'claude-haiku-4-5-20251001',
+        max_tokens: 120,
+        system:     briefSystem,
+        messages:   [{ role: 'user', content: briefPrompt }],
+      });
+      brief = response.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+    } catch (err) {
+      console.error('[/api/risk-brief] Claude failed:', err.message);
+    }
+  }
+
+  if (!brief && process.env.GEMINI_API_KEY) {
+    try {
+      brief = await callGemini(briefSystem, briefPrompt, 120);
+    } catch (err) {
+      console.error('[/api/risk-brief] Gemini fallback failed:', err.message);
+    }
+  }
+
+  if (!brief) {
+    brief = score != null
+      ? `${country_name || cc} currently has a ${label} risk level. Check CDC and WHO advisories before travel.`
       : `No risk data cached for ${country_name || cc} yet. Search this destination to load live safety intelligence.`;
-    return res.json({ brief: fallback, score, label });
   }
 
-  try {
-    const context = [
-      score != null ? `Risk score: ${score}/10 (${label})` : 'Risk score: not yet calculated',
-      cdcRows.length  ? `CDC notices: ${cdcRows.map(r => `Level ${r.alert_level} — ${r.title}`).join('; ')}` : 'CDC notices: none',
-      whoRows.length  ? `WHO outbreaks: ${whoRows.map(r => `${r.title} (${r.recency})`).join('; ')}` : 'WHO outbreaks: none',
-      newsRows.length ? `Recent news: ${newsRows.map(r => r.title).join('; ')}` : 'Recent news: none',
-    ].join('\n');
-
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const response  = await anthropic.messages.create({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 120,
-      system:     'You are a travel safety analyst. Write exactly 2 sentences: one summarizing the current risk level and why, one actionable recommendation. Plain text only, no markdown.',
-      messages:   [{ role: 'user', content: `Write a 2-sentence risk brief for ${country_name || cc}:\n${context}` }],
-    });
-    const brief = response.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
-    res.json({ brief, score, label });
-  } catch (err) {
-    console.error('[/api/risk-brief]', err.message);
-    res.json({ brief: `${country_name || cc} currently has a ${label} risk level. Check CDC and WHO advisories before travel.`, score, label });
-  }
+  res.json({ brief, score, label });
 });
 
 // ─── GET /api/admin/stats ────────────────────────────────────────────────────
