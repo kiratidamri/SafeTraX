@@ -111,9 +111,9 @@ npm run dev
 npm start
 ```
 
-Visit `http://localhost:3000`
+Visit `https://safetrax.onrender.com/index.html`
 
-Admin dashboard: `http://localhost:3000/admin.html`
+Admin dashboard: `https://safetrax.onrender.com/admin.html`
 
 ---
 
